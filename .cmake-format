@@ -1,0 +1,45 @@
+format:
+  tab_size: 2
+  line_width: 120
+  dangle_parens: false
+  line_ending: unix
+  command_case: canonical
+
+markup:
+  enable_markup: false
+
+parse:
+  additional_commands:
+    add_lua_module:
+      pargs:
+        nargs: '*'
+        flags: []
+      spelling: add_lua_module
+      kwargs:
+        SRCS: +
+        DEPENDS: +
+    add_custom_service:
+      pargs:
+        nargs: '*'
+        flags: []
+      spelling: add_custom_service
+      kwargs:
+        SRCS: +
+        DEPENDS: +
+    packageproject:
+      pargs:
+        nargs: '*'
+        flags: []
+      spelling: packageProject
+      kwargs:
+        NAME: 1
+        VERSION: 1
+        NAMESPACE: 1
+        INCLUDE_DIR: 1
+        INCLUDE_DESTINATION: 1
+        INCLUDE_HEADER_PATTERN: 1
+        BINARY_DIR: 1
+        COMPATIBILITY: 1
+        VERSION_HEADER: 1
+        DEPENDENCIES: +
+        CPACK: 1

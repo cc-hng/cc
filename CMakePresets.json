@@ -1,0 +1,77 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "generator": "Unix Makefiles",
+      "hidden": true,
+      "cacheVariables": {
+        "CPACK_GENERATOR": "TGZ",
+        "CPACK_PACKAGE_DESCRIPTION_SUMMARY": "EE",
+        "CPACK_DEBIAN_PACKAGE_MAINTAINER": "cc <cc@l2x.top>",
+        "CPACK_DEBIAN_PACKAGE_NAME": "demo",
+        "CPACK_DEBIAN_PACKAGE_DEPENDS": "",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "default",
+      "cacheVariables": {
+        "CPACK_GENERATOR": "DEB",
+        "CPACK_DEBIAN_PACKAGE_ARCHITECTURE": "amd64",
+        "CPACK_PACKAGING_INSTALL_PREFIX": "/opt/my/amd64",
+        "CMAKE_INSTALL_PREFIX": "/opt/my/amd64",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      },
+      "inherits": [
+        "base"
+      ]
+    },
+    {
+      "name": "ohos",
+      "toolchainFile": "/opt/ohos/toolchains/ohos_308t.toolchain.cmake",
+      "cacheVariables": {
+        "NLUA_USE_LUAJIT": "ON",
+        "NLUA_WITH_MODBUS": "ON",
+        "NLUA_STRIP": "OFF",
+        "CPACK_PACKAGING_INSTALL_PREFIX": "/",
+        "CMAKE_INSTALL_PREFIX": "/opt/my/ohos"
+      },
+      "inherits": [
+        "base"
+      ]
+    },
+    {
+      "name": "aarch64",
+      "toolchainFile": "/opt/gcc/toolchains/aarch64-linux-gnu.toolchain.cmake",
+      "cacheVariables": {
+        "NLUA_USE_LUAJIT": "ON",
+        "NLUA_STRIP": "ON",
+        "CPACK_PACKAGING_INSTALL_PREFIX": "/",
+        "CMAKE_INSTALL_PREFIX": "/opt/my/aarch64"
+      },
+      "inherits": [
+        "base"
+      ]
+    },
+    {
+      "name": "arm",
+      "toolchainFile": "/opt/gcc/toolchains/arm-none-linux.toolchain.cmake",
+      "cacheVariables": {
+        "NLUA_USE_LUAJIT": "ON",
+        "NLUA_WITH_MODBUS": "ON",
+        "NLUA_STRIP": "ON",
+        "CPACK_PACKAGING_INSTALL_PREFIX": "/",
+        "CMAKE_INSTALL_PREFIX": "/opt/my/arm32"
+      },
+      "inherits": [
+        "base"
+      ]
+    }
+  ]
+}

@@ -36,9 +36,6 @@
       "name": "ohos",
       "toolchainFile": "/opt/ohos/toolchains/ohos_308t.toolchain.cmake",
       "cacheVariables": {
-        "NLUA_USE_LUAJIT": "ON",
-        "NLUA_WITH_MODBUS": "ON",
-        "NLUA_STRIP": "OFF",
         "CPACK_PACKAGING_INSTALL_PREFIX": "/",
         "CMAKE_INSTALL_PREFIX": "/opt/my/ohos"
       },
@@ -50,8 +47,6 @@
       "name": "aarch64",
       "toolchainFile": "/opt/gcc/toolchains/aarch64-linux-gnu.toolchain.cmake",
       "cacheVariables": {
-        "NLUA_USE_LUAJIT": "ON",
-        "NLUA_STRIP": "ON",
         "CPACK_PACKAGING_INSTALL_PREFIX": "/",
         "CMAKE_INSTALL_PREFIX": "/opt/my/aarch64"
       },
@@ -63,9 +58,6 @@
       "name": "arm",
       "toolchainFile": "/opt/gcc/toolchains/arm-none-linux.toolchain.cmake",
       "cacheVariables": {
-        "NLUA_USE_LUAJIT": "ON",
-        "NLUA_WITH_MODBUS": "ON",
-        "NLUA_STRIP": "ON",
         "CPACK_PACKAGING_INSTALL_PREFIX": "/",
         "CMAKE_INSTALL_PREFIX": "/opt/my/arm32"
       },

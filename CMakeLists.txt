@@ -53,6 +53,16 @@ endif()
 _clear_variable(DESTINATION CMAKE_CXX_FLAGS_DEBUG BACKUP CMAKE_CXX_FLAGS_DEBUG_BAK)
 _clear_variable(DESTINATION CMAKE_EXE_LINKER_FLAGS_DEBUG BACKUP CMAKE_EXE_LINKER_FLAGS_DEBUG_BAK)
 
+include(cmake/external.cmake)
+
+if(CC_ENABLE_IO_URING)
+  find_package(PkgConfig REQUIRED)
+  pkg_search_module(LIBURING REQUIRED liburing)
+  add_library(liburing INTERFACE)
+  target_include_directories(liburing INTERFACE ${LIBURING_INCLUDE_DIRS})
+  target_link_libraries(liburing INTERFACE ${LIBURING_LINK_LIBRARIES})
+endif()
+
 find_package(Threads REQUIRED)
 
 set(MY_LIBS)
@@ -119,9 +129,10 @@ target_link_libraries(
 if(CC_ENABLE_COROUTINE)
   target_compile_features(3rd_dependencies INTERFACE cxx_std_20)
 endif()
-# if(CC_ENABLE_IO_URING)
-#   target_compile_definitions(3rd_dependencies INTERFACE BOOST_ASIO_HAS_IO_URING=1 BOOST_ASIO_DISABLE_EPOLL=1)
-# endif()
+if(CC_ENABLE_IO_URING)
+  target_link_libraries(3rd_dependencies INTERFACE liburing)
+  target_compile_definitions(3rd_dependencies INTERFACE BOOST_ASIO_HAS_IO_URING=1 BOOST_ASIO_DISABLE_EPOLL=1)
+endif()
 
 #####################################
 # third-party dependencies

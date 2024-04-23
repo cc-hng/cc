@@ -13,6 +13,42 @@
 
 namespace cc {
 
+namespace detail {
+
+class IntervalTimer final : public std::enable_shared_from_this<IntervalTimer> {
+public:
+    using Callback = std::function<void(std::shared_ptr<boost::asio::steady_timer>)>;
+
+    IntervalTimer(boost::asio::io_context& io_context, std::chrono::milliseconds interval,
+                  Callback fn)
+      : timer_(std::make_shared<boost::asio::steady_timer>(io_context))
+      , interval_(interval)
+      , callback_((Callback&&)fn) {}
+
+    ~IntervalTimer() {}
+
+    void start() {
+        std::shared_ptr<IntervalTimer> self = shared_from_this();
+        timer_->expires_after(interval_);
+        timer_->async_wait([self](const boost::system::error_code& ec) {
+            if (!ec) {
+                self->callback_(self->timer_);
+                self->start();
+            }
+        });
+    }
+
+    std::weak_ptr<boost::asio::steady_timer> get_weak_timer() const {
+        return std::weak_ptr<boost::asio::steady_timer>(timer_);
+    }
+
+private:
+    std::shared_ptr<boost::asio::steady_timer> timer_;
+    std::chrono::milliseconds interval_;
+    Callback callback_;
+};
+}  // namespace detail
+
 class AsioPool final : boost::noncopyable {
     using executor_t   = boost::asio::io_context::executor_type;
     using work_guard_t = boost::asio::executor_work_guard<executor_t>;
@@ -30,30 +66,40 @@ public:
     inline boost::asio::io_context& get_io_context() { return ctx_; }
 
     template <typename CompletionToken>
-    auto enqueue(CompletionToken&& token) {
+    inline auto enqueue(CompletionToken&& token) {
         return boost::asio::dispatch(ctx_, std::forward<CompletionToken>(token));
     }
 
     template <typename Fn>
+    auto set_interval(int ms, Fn&& f) {
+        std::shared_ptr<detail::IntervalTimer> t =
+            std::make_shared<detail::IntervalTimer>(
+                get_io_context(), std::chrono::milliseconds(ms), std::forward<Fn>(f));
+        t->start();
+        return t->get_weak_timer();
+    }
+
+    template <typename Fn>
     auto set_timeout(int ms, Fn&& f) {
-        auto timer = std::make_shared<boost::asio::steady_timer>(
-            ctx_, std::chrono::milliseconds(ms));
-        timer->async_wait(
-            [timer, fn = std::forward<Fn>(f)](boost::system::error_code ec) {
-                if (!ec) {
-                    fn();
-                }
-            });
+        auto timer = std::make_shared<boost::asio::steady_timer>(ctx_);
+        timer->expires_after(std::chrono::milliseconds(ms));
+        std::function handle = [fn = std::forward<Fn>(f),
+                                timer](boost::system::error_code ec) {
+            if (!ec) {
+                fn();
+            }
+        };
+        timer->async_wait(handle);
         return std::weak_ptr<boost::asio::steady_timer>(timer);
     }
 
-    void clear_timeout(std::weak_ptr<boost::asio::steady_timer> timer) const {
+    inline void clear_timeout(std::weak_ptr<boost::asio::steady_timer> timer) const {
         if (auto raw = timer.lock()) {
             raw->cancel();
         }
     }
 
-    void clear_interval(std::weak_ptr<boost::asio::steady_timer> timer) const {
+    inline void clear_interval(std::weak_ptr<boost::asio::steady_timer> timer) const {
         clear_timeout(timer);
     }
 

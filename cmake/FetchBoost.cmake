@@ -108,6 +108,10 @@ boost_add_submodule(smart_ptr ${BOOST_VERSION} "")
 boost_add_submodule(exception ${BOOST_VERSION} "")
 boost_add_submodule(align ${BOOST_VERSION} "")
 boost_add_submodule(asio ${BOOST_VERSION} "")
+
+boost_add_submodule(endian ${BOOST_VERSION} "")
+boost_add_submodule(static_string ${BOOST_VERSION} "")
+boost_add_submodule(logic ${BOOST_VERSION} "")
 boost_add_submodule(beast ${BOOST_VERSION} "")
 
 # if(boost_ADDED)

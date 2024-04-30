@@ -1,14 +1,10 @@
 {
   "version": 3,
-  "cmakeMinimumRequired": {
-    "major": 3,
-    "minor": 24,
-    "patch": 0
-  },
+  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
   "configurePresets": [
     {
       "name": "base",
-      "generator": "Unix Makefiles",
+      "generator": "Ninja",
       "hidden": true,
       "cacheVariables": {
         "CPACK_GENERATOR": "TGZ",
@@ -28,9 +24,7 @@
         "CMAKE_INSTALL_PREFIX": "/opt/my/amd64",
         "CMAKE_BUILD_TYPE": "RelWithDebInfo"
       },
-      "inherits": [
-        "base"
-      ]
+      "inherits": [ "base" ]
     },
     {
       "name": "ohos",
@@ -39,9 +33,7 @@
         "CPACK_PACKAGING_INSTALL_PREFIX": "/",
         "CMAKE_INSTALL_PREFIX": "/opt/my/ohos"
       },
-      "inherits": [
-        "base"
-      ]
+      "inherits": [ "base" ]
     },
     {
       "name": "aarch64",
@@ -50,9 +42,7 @@
         "CPACK_PACKAGING_INSTALL_PREFIX": "/",
         "CMAKE_INSTALL_PREFIX": "/opt/my/aarch64"
       },
-      "inherits": [
-        "base"
-      ]
+      "inherits": [ "base" ]
     },
     {
       "name": "arm",
@@ -61,9 +51,7 @@
         "CPACK_PACKAGING_INSTALL_PREFIX": "/",
         "CMAKE_INSTALL_PREFIX": "/opt/my/arm32"
       },
-      "inherits": [
-        "base"
-      ]
+      "inherits": [ "base" ]
     }
   ]
 }

@@ -12,3 +12,7 @@ endmacro(add_example)
 
 add_example(ex_asio_coro)
 add_example(ex_asio_condvar)
+add_example(ex_asio_semaphore)
+add_example(ex_functor)
+add_example(ex_asio_channel)
+add_example(ex_httpserver)

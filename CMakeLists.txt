@@ -12,6 +12,7 @@ string(COMPARE EQUAL ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR} PROJECT_IS_
 option(CC_ENABLE_YYJSON "Enable yyjson" ON)
 option(CC_ENABLE_COROUTINE "Enable c++2x coroutines" ON)
 option(CC_ENABLE_IO_URING "Enable io_uring" ON)
+option(CC_ENABLE_INSTALL "Enable install" ${PROJECT_IS_TOP_LEVEL})
 option(CC_BUILD_TESTS "Build unittest" ${PROJECT_IS_TOP_LEVEL})
 option(CC_BUILD_BENCHES "Build benchmark" ${PROJECT_IS_TOP_LEVEL})
 option(CC_BUILD_EXAMPLES "Build examples" ${PROJECT_IS_TOP_LEVEL})
@@ -21,13 +22,14 @@ option(CC_BUILD_EXAMPLES "Build examples" ${PROJECT_IS_TOP_LEVEL})
 #####################################
 include(cmake/common.cmake)
 
-if(CMAKE_CROSSCOMPILING)
-  include(CheckIncludeFileCXX)
-  check_include_file_cxx("linux/io_uring.h" CC_HAS_IO_URING)
-else()
-  include(CheckCXXSourceRuns)
-  check_cxx_source_runs(
-    "
+if(CC_ENABLE_IO_URING)
+  if(CMAKE_CROSSCOMPILING)
+    include(CheckIncludeFileCXX)
+    check_include_file_cxx("linux/io_uring.h" CC_HAS_IO_URING)
+  else()
+    include(CheckCXXSourceRuns)
+    check_cxx_source_runs(
+      "
       #include <linux/io_uring.h>
       #include <sys/syscall.h>
       #include <unistd.h>
@@ -35,16 +37,13 @@ else()
 
       int main() {
         io_uring_params a = {};
-        return syscall(__NR_io_uring_setup, 1, &a) != -1
-          ? EXIT_SUCCESS
-          : EXIT_FAILURE;
+        return syscall(__NR_io_uring_setup, 1, &a) != -1 ? EXIT_SUCCESS : EXIT_FAILURE;
       }
     "
-    CC_HAS_IO_URING)
-endif()
+      CC_HAS_IO_URING)
+  endif()
 
-if(NOT CC_HAS_IO_URING)
-  set(CC_ENABLE_IO_URING OFF)
+  set(CC_ENABLE_IO_URING ${CC_HAS_IO_URING})
 endif()
 
 #####################################
@@ -169,11 +168,11 @@ endif()
 #####################################
 # install & pack
 #####################################
-# if(NLUA_INSTALL)
-#   install(PROGRAMS ${PROJECT_BINARY_DIR}/out/nlua DESTINATION bin)
-#   install(DIRECTORY ${PROJECT_BINARY_DIR}/out/modules DESTINATION bin)
-#   install(DIRECTORY ${PROJECT_BINARY_DIR}/out/services DESTINATION bin)
-#   install(DIRECTORY ${PROJECT_SOURCE_DIR}/runtime DESTINATION bin)
-#   install(DIRECTORY ${PROJECT_SOURCE_DIR}/examples DESTINATION bin)
-#   include(CPack)
-# endif()
+if(CC_ENABLE_INSTALL)
+  #   install(PROGRAMS ${PROJECT_BINARY_DIR}/out/nlua DESTINATION bin)
+  #   install(DIRECTORY ${PROJECT_BINARY_DIR}/out/modules DESTINATION bin)
+  #   install(DIRECTORY ${PROJECT_BINARY_DIR}/out/services DESTINATION bin)
+  #   install(DIRECTORY ${PROJECT_SOURCE_DIR}/runtime DESTINATION bin)
+  #   install(DIRECTORY ${PROJECT_SOURCE_DIR}/examples DESTINATION bin)
+  #   include(CPack)
+endif()

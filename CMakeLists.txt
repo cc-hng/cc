@@ -59,6 +59,7 @@ if(CC_ENABLE_IO_URING)
   pkg_search_module(LIBURING REQUIRED liburing)
   add_library(liburing INTERFACE)
   target_include_directories(liburing INTERFACE ${LIBURING_INCLUDE_DIRS})
+  target_link_directories(liburing INTERFACE ${LIBURING_LIBRARY_DIRS})
   target_link_libraries(liburing INTERFACE ${LIBURING_LINK_LIBRARIES})
 endif()
 
@@ -91,7 +92,7 @@ FetchContent_Declare(
   URL_HASH SHA256=55632412599faf85adf68ddc580a61f7b094e63a9da6345deeadc5408610246a)
 list(APPEND MY_LIBS Format.cmake)
 
-FetchContent_Declare(std_coroutines URL https://git.l2x.top/cc/std_coroutines/archive/v1.0.1.tar.gz)
+FetchContent_Declare(std_coroutines URL https://github.com/cc-hng/std_coroutines/archive/refs/tags/v1.0.1.tar.gz)
 list(APPEND MY_LIBS std_coroutines)
 
 # FetchContent_Declare(

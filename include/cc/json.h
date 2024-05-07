@@ -47,8 +47,8 @@ struct yyjson_convert;
 #define YYJSON_DEFINE_PRIMITIVE_TYPE(type, encode, decode, is_type)              \
     template <>                                                                  \
     struct yyjson_convert<type> {                                                \
-        static auto to_json(gsl::not_null<yyjson_mut_doc*> doc, const type& rhs) \
-            -> gsl::not_null<yyjson_mut_val*> {                                  \
+        static auto to_json(gsl::not_null<yyjson_mut_doc*> doc,                  \
+                            const type& rhs) -> gsl::not_null<yyjson_mut_val*> { \
             return encode(doc, rhs);                                             \
         }                                                                        \
                                                                                  \
@@ -85,8 +85,8 @@ struct yyjson_convert<yyjson_val*> {
 // std::string
 template <>
 struct yyjson_convert<std::string> {
-    static auto to_json(gsl::not_null<yyjson_mut_doc*> doc, const std::string& rhs)
-        -> gsl::not_null<yyjson_mut_val*> {
+    static auto to_json(gsl::not_null<yyjson_mut_doc*> doc,
+                        const std::string& rhs) -> gsl::not_null<yyjson_mut_val*> {
         return yyjson_mut_strncpy(doc, rhs.c_str(), rhs.size());
     }
 
@@ -99,8 +99,8 @@ struct yyjson_convert<std::string> {
 // std::string_view
 template <>
 struct yyjson_convert<std::string_view> {
-    static auto to_json(gsl::not_null<yyjson_mut_doc*> doc, std::string_view rhs)
-        -> gsl::not_null<yyjson_mut_val*> {
+    static auto to_json(gsl::not_null<yyjson_mut_doc*> doc,
+                        std::string_view rhs) -> gsl::not_null<yyjson_mut_val*> {
         return yyjson_mut_strncpy(doc, rhs.data(), rhs.size());
     }
 
@@ -113,8 +113,8 @@ struct yyjson_convert<std::string_view> {
 // std::vector
 template <class T, class A>
 struct yyjson_convert<std::vector<T, A>> {
-    static auto to_json(gsl::not_null<yyjson_mut_doc*> doc, const std::vector<T, A>& rhs)
-        -> gsl::not_null<yyjson_mut_val*> {
+    static auto to_json(gsl::not_null<yyjson_mut_doc*> doc,
+                        const std::vector<T, A>& rhs) -> gsl::not_null<yyjson_mut_val*> {
         auto arr = yyjson_mut_arr(doc);
         for (const auto& v : rhs) {
             auto item = yyjson_convert<T>::to_json(doc, v);
@@ -139,8 +139,8 @@ struct yyjson_convert<std::vector<T, A>> {
 // std::list
 template <class T, class A>
 struct yyjson_convert<std::list<T, A>> {
-    static auto to_json(gsl::not_null<yyjson_mut_doc*> doc, const std::list<T, A>& rhs)
-        -> gsl::not_null<yyjson_mut_val*> {
+    static auto to_json(gsl::not_null<yyjson_mut_doc*> doc,
+                        const std::list<T, A>& rhs) -> gsl::not_null<yyjson_mut_val*> {
         auto arr = yyjson_mut_arr(doc);
         for (const auto& v : rhs) {
             auto item = yyjson_convert<T>::to_json(doc, v);
@@ -165,8 +165,7 @@ struct yyjson_convert<std::list<T, A>> {
 template <class V, class C, class A>
 struct yyjson_convert<std::map<std::string, V, C, A>> {
     static gsl::not_null<yyjson_mut_val*>
-    to_json(gsl::not_null<yyjson_mut_doc*> doc,
-            const std::map<std::string, V, C, A>& rhs) {
+    to_json(gsl::not_null<yyjson_mut_doc*> doc, const std::map<std::string, V, C, A>& rhs) {
         auto obj = yyjson_mut_obj(doc);
         for (const auto& kv : rhs) {
             auto key = yyjson_mut_strncpy(doc, kv.first.c_str(), kv.first.size());
@@ -248,8 +247,8 @@ template <class T>
 struct yyjson_convert {
     static_assert(hana::Struct<T>::value, "T expect be a reflection type");
 
-    static auto to_json(gsl::not_null<yyjson_mut_doc*> doc, const T& rhs)
-        -> gsl::not_null<yyjson_mut_val*> {
+    static auto to_json(gsl::not_null<yyjson_mut_doc*> doc,
+                        const T& rhs) -> gsl::not_null<yyjson_mut_val*> {
         auto j = yyjson_mut_obj(doc);
         hana::for_each(rhs, [&](const auto& pair) {
             auto key           = hana::to<char const*>(hana::first(pair));

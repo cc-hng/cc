@@ -73,8 +73,9 @@ public:
     template <typename Fn>
     auto set_interval(int ms, Fn&& f) {
         std::shared_ptr<detail::IntervalTimer> t =
-            std::make_shared<detail::IntervalTimer>(
-                get_io_context(), std::chrono::milliseconds(ms), std::forward<Fn>(f));
+            std::make_shared<detail::IntervalTimer>(get_io_context(),
+                                                    std::chrono::milliseconds(ms),
+                                                    std::forward<Fn>(f));
         t->start();
         return t->get_weak_timer();
     }

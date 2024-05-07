@@ -77,7 +77,7 @@ public:
 struct bind_t {
     template <typename Signature, typename Fn,
               typename = hana::when<!std::is_member_function_pointer<Fn>::value>>
-    constexpr decltype(auto) operator()(Fn && fn, std::true_type = {}) const {
+    constexpr decltype(auto) operator()(Fn&& fn, std::true_type = {}) const {
         using Args = ct::args_t<Signature, hana::tuple>;
         using Ret  = ct::return_type_t<Signature>;
 
@@ -93,9 +93,8 @@ struct bind_t {
         return Functor<Ret>(std::move(newf));
     }
 
-    template <typename Fn,
-              typename = hana::when<!std::is_member_function_pointer<Fn>::value>>
-    constexpr decltype(auto) operator()(Fn && fn, std::false_type = {}) const {
+    template <typename Fn, typename = hana::when<!std::is_member_function_pointer<Fn>::value>>
+    constexpr decltype(auto) operator()(Fn&& fn, std::false_type = {}) const {
         using Args = ct::args_t<Fn, hana::tuple>;
         using Ret  = ct::return_type_t<Fn>;
 
@@ -113,7 +112,7 @@ struct bind_t {
 
     template <typename Fn, typename Self,
               typename = hana::when<std::is_member_function_pointer<Fn>::value>>
-    constexpr decltype(auto) operator()(const Fn & fn, Self self) const {
+    constexpr decltype(auto) operator()(const Fn& fn, Self self) const {
         using Ret        = ct::return_type_t<Fn>;
         using ArgsOrigin = ct::args_t<Fn, hana::tuple>;
         using Args       = typename detail::tuple_pop_front<ArgsOrigin>::type;

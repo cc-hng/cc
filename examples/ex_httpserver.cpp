@@ -8,24 +8,20 @@ int main(int argc, char* argv[]) {
     auto& ctx = Ap.get_io_context();
 
     cc::HttpServer server(ctx, "0.0.0.0", 8088);
+    fmt::print("Server listen at: *:8088\n");
 
     server.serve_static("/public", "/data/www/html");
-    // server.Get("/index.html",
-    //            [](const auto& req, auto& resp,
-    //               const auto& go) -> boost::asio::awaitable<void> {
-    //                resp.set_content("<p1>hello,world</p1>", "text/html");
-    //                co_return;
-    //            });
 
     server.Get("/api/a",
                [](const auto& req, auto& resp,
                   const auto& go) -> boost::asio::awaitable<void> {
+                   co_await cc::async_sleep(1000);
                    resp.set_content("<p1>hello,world</p1>", "text/html");
                    co_return;
                });
 
     server.start();
 
-    Ap.run(1);
+    Ap.run();
     return 0;
 }

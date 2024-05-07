@@ -30,8 +30,7 @@ asio::task<int> task_3() {
 asio::task<void> run_all() {
     cc::StopWatch sw;
     auto [one, two, three] = co_await (task_1() && task_2() && task_3());
-    SPDLOG_INFO(
-        "run_all: cost: {}s, result: ({}, {}, {})", sw.elapsed(), one, two, three);
+    SPDLOG_INFO("run_all: cost: {}s, result: ({}, {}, {})", sw.elapsed(), one, two, three);
 }
 
 asio::task<void> run_any() {

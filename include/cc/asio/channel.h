@@ -11,8 +11,7 @@ namespace cc {
 namespace chan {
 
 namespace detail {
-template <typename T, typename MutexPolicy = NonMutex,
-          template <class> class Lock = LockGuard>
+template <typename T, typename MutexPolicy = NonMutex, template <class> class Lock = LockGuard>
 struct mpsc_context_t {
     MutexPolicy mtx_;
     CondVar<MutexPolicy> cv_;

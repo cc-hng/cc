@@ -7,8 +7,6 @@
 #include <boost/core/noncopyable.hpp>
 #include <cc/util.h>
 
-#include <fmt/core.h>
-
 namespace cc {
 
 namespace asio = boost::asio;

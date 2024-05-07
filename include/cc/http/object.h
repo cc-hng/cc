@@ -11,14 +11,15 @@ namespace cc {
 namespace http = boost::beast::http;
 
 struct http_request_t {
-    using kv_t = std::shared_ptr<std::unordered_map<std::string, std::string>>;
+    using kv_t     = std::shared_ptr<std::unordered_map<std::string, std::string>>;
+    using raw_type = http::request<http::span_body<char>>;
 
-    http::request<http::span_body<char>> request;
+    raw_type request;
     kv_t params;
     kv_t querys;
 
-    http::request<http::span_body<char>>* operator->() { return &request; }
-    const http::request<http::span_body<char>>* operator->() const { return &request; }
+    raw_type* operator->() { return &request; }
+    const raw_type* operator->() const { return &request; }
 };
 
 struct http_response_t {
@@ -42,7 +43,8 @@ struct http_response_t {
 };
 
 using http_next_handle_t = std::function<boost::asio::awaitable<void>()>;
-using http_handle_t      = std::function<boost::asio::awaitable<void>(
-    const http_request_t&, http_response_t&, const http_next_handle_t&)>;
+using http_handle_t =
+    std::function<boost::asio::awaitable<void>(const http_request_t&, http_response_t&,
+                                               const http_next_handle_t&)>;
 
 }  // namespace cc

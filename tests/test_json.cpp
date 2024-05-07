@@ -36,9 +36,8 @@ TEST(yyjson, decode) {
            std::make_optional("cc")
     };
     auto json = cc::json::dump(car);
-    EXPECT_EQ(json,
-              "{\"make\":\"Toyota\",\"model\":\"Camry\",\"year\":2019,\"tire_"
-              "pressure\":[1.0,2.1,3.2,4.3],\"owner\":\"cc\"}");
+    EXPECT_EQ(json, "{\"make\":\"Toyota\",\"model\":\"Camry\",\"year\":2019,\"tire_"
+                    "pressure\":[1.0,2.1,3.2,4.3],\"owner\":\"cc\"}");
 }
 
 TEST(yyjson, map_key_mem) {

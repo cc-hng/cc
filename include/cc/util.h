@@ -13,7 +13,7 @@ struct NonMutex {
     inline void unlock() {}
 };
 
-template <class Mutex>
+template <typename Mutex>
 class LockGuard {
 public:
     explicit LockGuard(Mutex& mtx) : mtx_(mtx) { mtx.lock(); }

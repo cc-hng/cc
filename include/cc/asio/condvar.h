@@ -12,7 +12,7 @@
 
 namespace cc {
 
-template <class MutexPolicy = NonMutex, template <class> class WriterLock = LockGuard>
+template <typename MutexPolicy = NonMutex, template <class> class WriterLock = LockGuard>
 class CondVar final : public boost::noncopyable {
 public:
     CondVar()  = default;

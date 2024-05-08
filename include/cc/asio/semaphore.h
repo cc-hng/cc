@@ -11,7 +11,7 @@ namespace cc {
 
 namespace asio = boost::asio;
 
-template <class MutexPolicy = NonMutex, template <class> class WriterLock = LockGuard>
+template <typename MutexPolicy = NonMutex, template <class> class WriterLock = LockGuard>
 class Semaphore final : public boost::noncopyable {
 public:
     Semaphore(std::size_t init_permits) : permits_(init_permits) {}

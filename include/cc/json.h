@@ -21,12 +21,6 @@ namespace json {
 
 namespace hana = boost::hana;
 
-// null json
-struct null_t {};
-
-// empty json object
-using empty_t = std::unordered_map<std::string, bool>;
-
 namespace detail {
 
 inline void cassert(bool ok, std::string_view msg) {
@@ -41,7 +35,7 @@ inline void cassert(bool ok, std::string_view msg) {
 // a number
 // an object (JSON object)
 // an array
-template <class T>
+template <typename T>
 struct yyjson_convert;
 
 #define YYJSON_DEFINE_PRIMITIVE_TYPE(type, encode, decode, is_type)              \
@@ -111,7 +105,7 @@ struct yyjson_convert<std::string_view> {
 };
 
 // std::vector
-template <class T, class A>
+template <typename T, typename A>
 struct yyjson_convert<std::vector<T, A>> {
     static auto to_json(gsl::not_null<yyjson_mut_doc*> doc,
                         const std::vector<T, A>& rhs) -> gsl::not_null<yyjson_mut_val*> {
@@ -137,7 +131,7 @@ struct yyjson_convert<std::vector<T, A>> {
 };
 
 // std::list
-template <class T, class A>
+template <typename T, typename A>
 struct yyjson_convert<std::list<T, A>> {
     static auto to_json(gsl::not_null<yyjson_mut_doc*> doc,
                         const std::list<T, A>& rhs) -> gsl::not_null<yyjson_mut_val*> {
@@ -162,7 +156,7 @@ struct yyjson_convert<std::list<T, A>> {
 };
 
 // std::map
-template <class V, class C, class A>
+template <typename V, typename C, typename A>
 struct yyjson_convert<std::map<std::string, V, C, A>> {
     static gsl::not_null<yyjson_mut_val*>
     to_json(gsl::not_null<yyjson_mut_doc*> doc, const std::map<std::string, V, C, A>& rhs) {
@@ -190,7 +184,7 @@ struct yyjson_convert<std::map<std::string, V, C, A>> {
 };
 
 // std::unordered_map
-template <class V, class C, class A>
+template <typename V, typename C, typename A>
 struct yyjson_convert<std::unordered_map<std::string, V, C, A>> {
     static auto to_json(gsl::not_null<yyjson_mut_doc*> doc,
                         const std::unordered_map<std::string, V, C, A>& rhs)
@@ -219,7 +213,7 @@ struct yyjson_convert<std::unordered_map<std::string, V, C, A>> {
 };
 
 // std::optional
-template <class T>
+template <typename T>
 struct yyjson_convert<std::optional<T>> {
     using optional_type = std::optional<T>;
 
@@ -243,7 +237,7 @@ struct yyjson_convert<std::optional<T>> {
     }
 };
 
-template <class T>
+template <typename T>
 struct yyjson_convert {
     static_assert(hana::Struct<T>::value, "T expect be a reflection type");
 
@@ -294,7 +288,7 @@ T convert(yyjson_val* val) {
 //
 // Examples:
 //    parse<yyjson_val *>(js, [](yyjson_val *root) {})
-template <class T, class F>
+template <typename T, typename F>
 void parse(std::string_view json_str, F&& f) {
     T ret;
     auto doc = yyjson_read(json_str.data(), json_str.size(), 0);
@@ -310,7 +304,7 @@ void parse(std::string_view json_str, F&& f) {
 
 // If T contains yyjson_val * p
 // then p is a wild pointer
-template <class T>
+template <typename T>
 T parse(std::string_view json_str) {
     T ret;
     auto doc = yyjson_read(json_str.data(), json_str.size(), 0);
@@ -324,7 +318,7 @@ T parse(std::string_view json_str) {
     return ret;
 }
 
-template <class T>
+template <typename T>
 std::string dump(const T& t) {
     auto doc  = yyjson_mut_doc_new(NULL);
     auto root = detail::yyjson_convert<T>::to_json(doc, t);

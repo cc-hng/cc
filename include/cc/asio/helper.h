@@ -7,7 +7,7 @@ namespace asio = boost::asio;  // NOLINT
 // alias
 namespace boost {
 namespace asio {
-template <class T, class... Args>
+template <typename T, typename... Args>
 using task = awaitable<T, Args...>;
 }
 }  // namespace boost

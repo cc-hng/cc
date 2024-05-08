@@ -1,13 +1,13 @@
 
 #include <cc/asio/core.h>
-#include <cc/http/core.h>
+#include <cc/lit/core.h>
 #include <fmt/core.h>
 
 int main(int argc, char* argv[]) {
     auto& Ap  = cc::AsioPool::get();
     auto& ctx = Ap.get_io_context();
 
-    cc::HttpServer server(ctx, "0.0.0.0", 8088);
+    cc::lit::App server(ctx, "0.0.0.0", 8088);
     fmt::print("Server listen at: *:8088\n");
 
     server.serve_static("/public", "/data/www/html");

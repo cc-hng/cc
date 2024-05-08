@@ -5,9 +5,10 @@
 #include <tuple>
 #include <vector>
 #include <boost/core/noncopyable.hpp>
-#include <cc/http/object.h>
+#include <cc/lit/object.h>
 
 namespace cc {
+namespace lit {
 
 // template <typename Body = http::string_body>
 class Router final : public boost::noncopyable {
@@ -41,16 +42,12 @@ public:
                     co_return co_await go();
                 }
 
-                auto [path, query]     = split_target(req->target());
-                auto [matched, params] = parse_path_(path);
+                auto [matched, params] = parse_path_(req.path);
                 if (!matched) {
                     co_return co_await go();
                 }
 
-                auto _req   = const_cast<request_type&>(req);
-                _req.params = params;
-                // _req.querys = parse_query(query);
-
+                const_cast<request_type&>(req).params = params;
                 co_await handler_(req, resp, go);
             }
 
@@ -92,21 +89,7 @@ private:
         co_await fn(req, resp, next);
     }
 
-    static std::tuple<std::string_view, std::string_view>
-    split_target(std::string_view target) {
-        static std::string nullstr = "";
-        auto offset                = target.find_first_of('?');
-        std::string_view path, query;
-        if (offset != std::string_view::npos) {
-            path  = target.substr(0, offset);
-            query = target.substr(offset + 1);
-        } else {
-            path  = target;
-            query = nullstr;
-        }
-        return std::make_tuple(path, query);
-    }
-
+public:
     /// @brief parse path to a kv map according to rule_t
     ///        throw a exception if parse failed.
     /// @param target:
@@ -183,4 +166,5 @@ private:
     std::vector<http_handle_t> handlers_;
 };
 
+}  // namespace lit
 }  // namespace cc

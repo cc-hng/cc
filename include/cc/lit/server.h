@@ -1,24 +1,22 @@
 #include <iostream>
 #include <list>
-#include <optional>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 #include <cc/asio/semaphore.h>
-#include <cc/http/middleware.h>
-#include <cc/http/mime_types.h>
-#include <cc/http/router.h>
+#include <cc/lit/middleware.h>
+#include <cc/lit/mime_types.h>
+#include <cc/lit/object.h>
+#include <cc/lit/router.h>
+
+#include <fmt/core.h>
 
 namespace cc {
+namespace lit {
 
-namespace asio   = boost::asio;
-namespace beast  = boost::beast;
-namespace http   = beast::http;
-using tcp        = boost::asio::ip::tcp;
-using tcp_stream = typename beast::tcp_stream::rebind_executor<
-    asio::use_awaitable_t<>::executor_with_default<asio::any_io_executor>>::other;
-
+namespace detail {
 // Return a reasonable mime type based on the extension of a file.
 inline beast::string_view get_mime_type(beast::string_view path) {
     using beast::iequals;
@@ -27,31 +25,11 @@ inline beast::string_view get_mime_type(beast::string_view path) {
         if (pos == beast::string_view::npos) return beast::string_view{};
         return path.substr(pos);
     }();
-    if (iequals(ext, ".htm")) return "text/html";
-    if (iequals(ext, ".html")) return "text/html";
-    if (iequals(ext, ".php")) return "text/html";
-    if (iequals(ext, ".css")) return "text/css";
-    if (iequals(ext, ".txt")) return "text/plain";
-    if (iequals(ext, ".js")) return "application/javascript";
-    if (iequals(ext, ".json")) return "application/json";
-    if (iequals(ext, ".xml")) return "application/xml";
-    if (iequals(ext, ".swf")) return "application/x-shockwave-flash";
-    if (iequals(ext, ".flv")) return "video/x-flv";
-    if (iequals(ext, ".png")) return "image/png";
-    if (iequals(ext, ".jpe")) return "image/jpeg";
-    if (iequals(ext, ".jpeg")) return "image/jpeg";
-    if (iequals(ext, ".jpg")) return "image/jpeg";
-    if (iequals(ext, ".gif")) return "image/gif";
-    if (iequals(ext, ".bmp")) return "image/bmp";
-    if (iequals(ext, ".ico")) return "image/vnd.microsoft.icon";
-    if (iequals(ext, ".tiff")) return "image/tiff";
-    if (iequals(ext, ".tif")) return "image/tiff";
-    if (iequals(ext, ".svg")) return "image/svg+xml";
-    if (iequals(ext, ".svgz")) return "image/svg+xml";
-    return "application/text";
+    return cc::lit::get_mime_type(ext);
 }
+}  // namespace detail
 
-class HttpServer {
+class App {
 public:
     struct options_t {
         int timeout;
@@ -154,8 +132,8 @@ public:
     };
 
 public:
-    HttpServer(boost::asio::io_context& ioc, std::string_view ip, unsigned short port,
-               options_t options = {30, -1})
+    App(boost::asio::io_context& ioc, std::string_view ip, unsigned short port,
+        options_t options = {30, -1})
       : ioc_(ioc)
       , ip_(ip)
       , port_(port)
@@ -163,7 +141,7 @@ public:
         router_.use(&middleware::auto_headers);
     }
 
-    ~HttpServer() = default;
+    ~App() = default;
 
     /// run
     void start() {
@@ -174,6 +152,42 @@ public:
     /// static
     void serve_static(std::string_view mount_point, std::string_view dir) {
         static_router_.emplace_back(static_router_t(mount_point, dir));
+    }
+
+    void websocket(std::string_view path, ws_handle_t&& handler) {
+        class Functor {
+        public:
+            Functor(std::string_view path, ws_handle_t&& handler)
+              : parse_path_(Router::compile_route(path))
+              , handler_(std::move(handler)) {}
+
+            asio::awaitable<bool>
+            operator()(const http_request_t& req, std::shared_ptr<tcp_stream> stream) {
+                auto [matched, params] = parse_path_(req.path);
+                if (!matched) {
+                    co_return false;
+                }
+
+                auto _req   = const_cast<http_request_t&>(req);
+                _req.params = params;
+
+                ws_stream ws(stream->release_socket());
+                stream = nullptr;
+                ws.set_option(beast::websocket::stream_base::timeout::suggested(
+                    beast::role_type::server));
+
+                // Accept the websocket handshake
+                co_await ws.async_accept(req.request);
+                co_await handler_(req, std::move(ws));
+                co_return true;
+            }
+
+        private:
+            std::function<std::tuple<bool, http_request_t::kv_t>(std::string_view)> parse_path_;
+            ws_handle_t handler_;
+        };
+
+        ws_router_.emplace_back(Functor(path, std::move(handler)));
     }
 
     /// route
@@ -229,41 +243,56 @@ private:
 
         for (;;) {
             co_await sem.acquire();
-            asio::co_spawn(acceptor.get_executor(),
-                           do_session(tcp_stream(co_await acceptor.async_accept())),
-                           [&](auto e) {
-                               sem.release();
-                               handle_exception(e);
-                           });
+            auto stream = std::make_shared<tcp_stream>(co_await acceptor.async_accept());
+            asio::co_spawn(acceptor.get_executor(), do_session(stream), [&](auto e) {
+                sem.release();
+                handle_exception(e);
+            });
         }
     }
 
     // Handles an HTTP server connection
-    asio::awaitable<void> do_session(tcp_stream stream) {
+    asio::awaitable<void> do_session(std::shared_ptr<tcp_stream> stream) {
         // This buffer is required to persist across reads
         beast::flat_buffer buffer;
 
         try {
             for (;;) {
+                std::optional<http::message_generator> msg;
                 // Set the timeout.
-                stream.expires_after(
+                stream->expires_after(
                     std::chrono::seconds(option_.timeout > 0 ? option_.timeout : INT_MAX));
 
-                std::optional<http::message_generator> msg;
                 // Read a request
                 http_request_t req;
                 http_response_t resp;
-                co_await http::async_read(stream, buffer, req.request);
-                co_await router_.run(req, resp, nullptr);
+                co_await http::async_read(*stream, buffer, req.request);
 
-                /// API not found
-                /// Fallback to static file
-                if (resp->result() == http::status::not_found) {
-                    for (const auto& r : static_router_) {
-                        auto [matched, response] = r(req.request);
-                        if (matched) {
-                            msg = std::move(response);
-                            break;
+                if (!req.handle()) {
+                    resp->keep_alive(req->keep_alive());
+                    resp->result(http::status::bad_request);
+                    resp->body() = "Illegal request-target\n";
+                } else {
+                    if (beast::websocket::is_upgrade(req.request)) {
+                        resp->keep_alive(req->keep_alive());
+                        for (const auto& f : ws_router_) {
+                            if (co_await f(req, stream)) {
+                                break;
+                            }
+                        }
+                    } else {
+                        co_await router_.run(req, resp, nullptr);
+
+                        /// API not found
+                        /// Fallback to static file
+                        if (resp->result() == http::status::not_found) {
+                            for (const auto& r : static_router_) {
+                                auto [matched, response] = r(req.request);
+                                if (matched) {
+                                    msg = std::move(response);
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
@@ -277,7 +306,7 @@ private:
                 bool keep_alive = msg->keep_alive();
 
                 // Send the response
-                co_await beast::async_write(stream, std::move(*msg), asio::use_awaitable);
+                co_await beast::async_write(*stream, std::move(*msg), asio::use_awaitable);
 
                 if (!keep_alive) {
                     // This means we should close the connection, usually because
@@ -288,14 +317,17 @@ private:
         } catch (boost::system::system_error& se) {
             auto code = se.code();
             if (code != http::error::end_of_stream && code != asio::error::connection_reset
-                && code != asio::error::timed_out) {
+                && code != asio::error::timed_out && code != asio::error::operation_aborted
+                && code != beast::websocket::error::closed) {
                 throw;
             }
         }
 
         // Send a TCP shutdown
-        beast::error_code ec;
-        std::ignore = stream.socket().shutdown(tcp::socket::shutdown_send, ec);
+        if (stream) {
+            beast::error_code ec;
+            std::ignore = stream->socket().shutdown(tcp::socket::shutdown_send, ec);
+        }
 
         // At this point the connection is closed gracefully
         // we ignore the error because the client might have
@@ -309,6 +341,10 @@ private:
     const options_t option_;
     Router router_;
     std::list<static_router_t> static_router_;
+    std::list<std::function<asio::awaitable<bool>(const http_request_t&,
+                                                  std::shared_ptr<tcp_stream>)>>
+        ws_router_;
 };
 
+}  // namespace lit
 }  // namespace cc

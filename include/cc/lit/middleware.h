@@ -2,11 +2,12 @@
 
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
-#include <cc/http/object.h>
+#include <cc/lit/object.h>
 
 #include <stdio.h>
 
 namespace cc {
+namespace lit {
 
 namespace http = boost::beast::http;
 
@@ -40,4 +41,5 @@ struct middleware {
     }
 };
 
+}  // namespace lit
 }  // namespace cc

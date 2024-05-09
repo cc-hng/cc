@@ -42,17 +42,23 @@ struct mpsc_context_t {
 };
 }  // namespace detail
 
+template <typename T>
+using Sender = std::shared_ptr<std::function<void(const T&)>>;
+
+template <typename T>
+using Receiver = std::unique_ptr<std::function<asio::awaitable<std::deque<T>>()>>;
+
 template <typename T, bool threadsafe = true>
-auto make_mpsc() {
-#define MAKE_MPSC_IMPL(ctx)                                                               \
-    do {                                                                                  \
-        using Sender                   = std::function<void(const T&)>;                   \
-        using Receiver                 = std::function<asio::awaitable<std::deque<T>>()>; \
-        std::shared_ptr<Sender> sender = std::make_shared<Sender>(                        \
-            [ctx](auto&& a) { ctx->send(std::forward<decltype(a)>(a)); });                \
-        std::unique_ptr<Receiver> receiver = std::make_unique<Receiver>(                  \
-            [ctx]() -> asio::task<std::deque<T>> { co_return co_await ctx->recv(); });    \
-        return std::make_tuple(sender, std::move(receiver));                              \
+auto make_mpsc() -> std::tuple<Sender<T>, Receiver<T>> {
+    using Sender   = Sender<T>;
+    using Receiver = Receiver<T>;
+#define MAKE_MPSC_IMPL(ctx)                                                            \
+    do {                                                                               \
+        Sender sender0 = std::make_shared<typename Sender::element_type>(              \
+            [ctx](auto&& a) { ctx->send(std::forward<decltype(a)>(a)); });             \
+        Receiver receiver0 = std::make_unique<typename Receiver::element_type>(        \
+            [ctx]() -> asio::task<std::deque<T>> { co_return co_await ctx->recv(); }); \
+        return std::make_tuple(sender0, std::move(receiver0));                         \
     } while (0)
 
     if constexpr (threadsafe) {

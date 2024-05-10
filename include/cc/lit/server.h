@@ -11,8 +11,6 @@
 #include <cc/lit/object.h>
 #include <cc/lit/router.h>
 
-#include <fmt/core.h>
-
 namespace cc {
 namespace lit {
 
@@ -47,7 +45,7 @@ public:
           , re("^" + std::string(_mount_point) + "([\\w\\./]+)[?#]?.*$") {}
 
         std::tuple<bool, std::optional<http::message_generator>>
-        operator()(const http::request<http::span_body<char>>& req) const {
+        operator()(const http::request<http::string_body>& req) const {
             auto method = req.method();
             if (method != http::verb::head && method != http::verb::get) {
                 return std::make_tuple(false, std::nullopt);

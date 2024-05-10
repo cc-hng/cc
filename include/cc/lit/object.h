@@ -19,7 +19,7 @@ using ws_stream = beast::websocket::stream<tcp_stream>;
 
 struct http_request_t {
     using kv_t     = std::shared_ptr<std::unordered_map<std::string, std::string>>;
-    using raw_type = http::request<http::span_body<char>>;
+    using raw_type = http::request<http::string_body>;
 
     raw_type request;
     std::string_view path;

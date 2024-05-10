@@ -31,6 +31,7 @@
       "toolchainFile": "/opt/ohos/toolchains/ohos_308t.toolchain.cmake",
       "cacheVariables": {
         "CPACK_PACKAGING_INSTALL_PREFIX": "/",
+        "CC_ENABLE_IO_URING": "ON",
         "CMAKE_INSTALL_PREFIX": "/opt/my/ohos"
       },
       "inherits": [ "base" ]

@@ -31,4 +31,7 @@ struct is_awaitable : public std::false_type {};
 template <typename T, typename Executor>
 struct is_awaitable<boost::asio::awaitable<T, Executor>> : public std::true_type {};
 
+template <typename T>
+constexpr bool is_awaitable_v = is_awaitable<T>::value;
+
 }  // namespace cc

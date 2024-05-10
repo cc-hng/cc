@@ -18,14 +18,18 @@ if(CMAKE_CXX_COMPILER_TARGET)
 endif()
 
 if(CC_ENABLE_IO_URING)
+  string(REPLACE "/" "\\/" CFLAGS_MODIFIED "${CMAKE_C_FLAGS}")
+
   ExternalProject_Add(
     liburing
-    URL https://github.com/axboe/liburing/archive/refs/tags/liburing-2.5.tar.gz
-    CONFIGURE_COMMAND ./configure --prefix=${CMAKE_INSTALL_PREFIX} --cc=${CMAKE_C_COMPILER} --cxx=${CMAKE_CXX_COMPILER}
-                      --use-libc
-    BUILD_COMMAND make
+    URL https://github.com/axboe/liburing/archive/refs/tags/liburing-2.6.tar.gz
+    CONFIGURE_COMMAND
+      sed -i "s/^\\(CFLAGS=\"[^\"]*\\)/\\1 ${CFLAGS_MODIFIED}/" configure && ./configure
+      --prefix=${CMAKE_INSTALL_PREFIX} --cc=${CMAKE_C_COMPILER} --cxx=${CMAKE_CXX_COMPILER} --use-libc && sed -i
+      "/ -C examples$/d" Makefile && sed -i "/ -C test$/d" Makefile
+    BUILD_COMMAND ${CMAKE_COMMAND} -E env CFLAGS=${CMAKE_C_FLAGS} make ENABLE_SHARED=0
     BUILD_IN_SOURCE 1
-    INSTALL_COMMAND make install
+    INSTALL_COMMAND make install ENABLE_SHARED=0
     DOWNLOAD_NO_PROGRESS TRUE)
 endif()
 

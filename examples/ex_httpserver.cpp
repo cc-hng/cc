@@ -20,8 +20,7 @@ public:
                  [](const auto& req, auto& resp,
                     const auto& go) -> boost::asio::awaitable<void> {
                      //  co_await cc::async_sleep(1000);
-                     resp.set_content("<p1>hello,world</p1>", "text/html");
-                     co_return;
+                     co_return resp.set_content("<p1>hello,world</p1>", "text/html");
                  });
 
         app_.Get("/api/b", [](const auto& req, auto& resp) {
@@ -29,8 +28,7 @@ public:
         });
 
         app_.Get("/api/c", [](const auto& req, auto& resp) -> boost::asio::awaitable<void> {
-            resp.set_content("<p1>hello,world3</p1>", "text/html");
-            co_return;
+            co_return resp.set_content("<p1>hello,world3</p1>", "text/html");
         });
 
         app_.Post("/api/e", cc::make_route(&HttpServer::api_e, this));

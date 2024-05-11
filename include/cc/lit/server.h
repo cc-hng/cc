@@ -227,8 +227,7 @@ private:
                 if constexpr (cc::is_awaitable_v<Ret>) {
                     co_await f(req, resp);
                 } else {
-                    f(req, resp);
-                    co_return;
+                    co_return f(req, resp);
                 }
             };
         }

@@ -18,7 +18,7 @@ namespace hana = boost::hana;
 class MakeRouteFunctor {
 public:
     template <typename Fn, typename = hana::when<!std::is_member_function_pointer_v<Fn>>>
-    constexpr decltype(auto) operator()(Fn&& fn) const {
+    constexpr decltype(auto) operator()(Fn && fn) const {
         using namespace cc::lit;
         using Ret     = ct::return_type_t<Fn>;
         using Args    = ct::args_t<Fn, std::tuple>;
@@ -37,14 +37,13 @@ public:
                     auto rep_msg = fn(req_msg);
                     rep_json     = cc::json::dump(rep_msg);
                 }
-                resp.set_content(rep_json);
-                co_return;
+                co_return resp.set_content(rep_json);
             });
     }
 
     template <typename Fn, typename Self,
               typename = hana::when<std::is_member_function_pointer_v<Fn>>>
-    constexpr decltype(auto) operator()(const Fn& fn, Self self) const {
+    constexpr decltype(auto) operator()(const Fn & fn, Self self) const {
         using Ret     = ct::return_type_t<Fn>;
         using Args    = ct::args_t<Fn, std::tuple>;
         using Request = std::decay_t<std::tuple_element_t<1, Args>>;

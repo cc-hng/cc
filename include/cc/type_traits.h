@@ -34,4 +34,25 @@ struct is_awaitable<boost::asio::awaitable<T, Executor>> : public std::true_type
 template <typename T>
 constexpr bool is_awaitable_v = is_awaitable<T>::value;
 
+// is callable
+template <typename F, typename... Args>
+struct is_callable {
+    // SFINAE  Check
+    template <typename T, typename Dummy = typename std::result_of<T(Args...)>::type>
+    static constexpr std::true_type check(std::nullptr_t dummy) {
+        return std::true_type{};
+    };
+
+    template <typename Dummy>
+    static constexpr std::false_type check(...) {
+        return std::false_type{};
+    };
+
+    // the integral_constant's value
+    static constexpr bool value = decltype(check<F>(nullptr))::value;
+};
+
+template <typename F, typename... Args>
+constexpr bool is_callable_v = is_callable<F, Args...>::value;
+
 }  // namespace cc

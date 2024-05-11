@@ -23,6 +23,16 @@ public:
                      resp.set_content("<p1>hello,world</p1>", "text/html");
                      co_return;
                  });
+
+        app_.Get("/api/b", [](const auto& req, auto& resp) {
+            resp.set_content("<p1>hello,world2</p1>", "text/html");
+        });
+
+        app_.Get("/api/c", [](const auto& req, auto& resp) -> boost::asio::awaitable<void> {
+            resp.set_content("<p1>hello,world3</p1>", "text/html");
+            co_return;
+        });
+
         app_.Post("/api/e", cc::make_route(&HttpServer::api_e, this));
         app_.Post("/api/f", cc::make_route(&HttpServer::api_f, this));
         app_.start();

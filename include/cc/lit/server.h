@@ -3,13 +3,17 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <tuple>
+#include <type_traits>
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
+#include <boost/callable_traits.hpp>
 #include <cc/asio/semaphore.h>
 #include <cc/lit/middleware.h>
 #include <cc/lit/mime_types.h>
 #include <cc/lit/object.h>
 #include <cc/lit/router.h>
+#include <cc/type_traits.h>
 
 namespace cc {
 namespace lit {
@@ -189,10 +193,15 @@ public:
     }
 
     /// route
-    void use(auto&& handler) { router_.use(std::move(handler)); }
+    template <typename Fn>
+    void use(Fn&& handler) {
+        // router_.use(std::move(handler));
+        router_.use(make_handle(std::forward<Fn>(handler)));
+    }
 
-    void route(http::verb method, std::string_view path, auto&& handler) {
-        router_.route(method, path, std::move(handler));
+    template <typename Fn>
+    void route(http::verb method, std::string_view path, Fn&& handler) {
+        router_.route(method, path, make_handle(std::forward<Fn>(handler)));
     }
 
     void Get(std::string_view path, auto&& handler) {
@@ -204,6 +213,28 @@ public:
     }
 
 private:
+    template <typename Fn>
+    static http_handle_t make_handle(Fn&& f) {
+        http_handle_t f0;
+        if constexpr (cc::is_callable_v<Fn, const http_request_t&, http_response_t&,
+                                        const http_next_handle_t&>) {
+            f0 = std::forward<Fn>(f);
+        } else {
+            using Ret = std::result_of_t<Fn(const http_request_t&, http_response_t&)>;
+            f0        = [f = std::forward<Fn>(
+                      f)](const http_request_t& req, http_response_t& resp,
+                          const http_next_handle_t& go) -> boost::asio::awaitable<void> {
+                if constexpr (cc::is_awaitable_v<Ret>) {
+                    co_await f(req, resp);
+                } else {
+                    f(req, resp);
+                    co_return;
+                }
+            };
+        }
+        return f0;
+    }
+
     static void handle_exception(std::exception_ptr e) {
         if (!e) return;
         try {

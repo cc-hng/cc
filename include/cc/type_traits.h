@@ -1,7 +1,9 @@
 #pragma once
 
 #include <optional>
+#include <tuple>
 #include <type_traits>
+#include <vector>
 
 namespace boost {
 namespace asio {
@@ -11,6 +13,25 @@ class awaitable;
 }  // namespace boost
 
 namespace cc {
+
+template <typename T>
+struct is_vector : public std::false_type {};
+
+template <typename T>
+struct is_vector<std::vector<T>> : public std::true_type {};
+
+template <typename T>
+constexpr bool is_vector_v = is_vector<T>::value;
+
+template <typename T>
+struct is_tuple : public std::false_type {};
+
+template <typename... Args>
+struct is_tuple<std::tuple<Args...>> : public std::true_type {};
+
+template <typename T>
+constexpr bool is_tuple_v = is_tuple<T>::value;
+
 /*
  * @brief: Check if a type is std::optional
  * @refer: https://stackoverflow.com/a/62313139

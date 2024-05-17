@@ -5,9 +5,8 @@
 
 namespace cc {
 
-// struct {};
-
-struct NonMutex {
+class NonMutex {
+public:
     inline void lock() {}
     inline bool try_lock() { return true; }
     inline void unlock() {}

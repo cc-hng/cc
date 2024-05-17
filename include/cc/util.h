@@ -1,7 +1,9 @@
 #pragma once
 
+#define CC_CONCAT0(a, b) a##b
+#define CC_CONCAT(a, b)  CC_CONCAT0(a, b)
 #define CC_CALL_OUTSIDE(fn) \
-    [[maybe_unused]] static const bool __b##__LINE__##__ = ((fn), true)
+    [[maybe_unused]] static const bool CC_CONCAT(__b_, __LINE__) = ((fn), true)
 
 namespace cc {
 

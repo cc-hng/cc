@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <list>
+#include <cc/util.h>
 #include <nanobench.h>
 
 namespace bench = ankerl::nanobench;
@@ -40,6 +41,4 @@ private:
         return 0;                   \
     }
 
-#define BENCHMARK_REGISTE(fn)                              \
-    [[maybe_unused]] static const bool __b##__LINE__##__ = \
-        ((BenchRegistry::get().registe(fn)), true)
+#define BENCHMARK_REGISTE(fn) CC_CALL_OUTSIDE(BenchRegistry::get().registe(fn))

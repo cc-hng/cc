@@ -17,7 +17,6 @@ namespace cc {
 
 namespace hana = boost::hana;
 
-// class A {};
 template <typename MutexPolicy = cc::NonMutex, template <typename> class ReadLock = cc::LockGuard,
           template <typename> class WriteLock = cc::LockGuard>
 class Sqlite3pp final {
@@ -162,6 +161,8 @@ private:
             }
         } else if constexpr (std::is_same_v<T0, float> || std::is_same_v<T0, double>) {
             rc = sqlite3_bind_double(vm, param_no, std::forward<T>(t));
+        } else if constexpr (std::is_same_v<T0, const char*>) {
+            rc = sqlite3_bind_text(vm, param_no, t, -1, SQLITE_TRANSIENT);
         } else if constexpr (std::is_same_v<T0, std::string>
                              || std::is_same_v<T0, std::string_view>) {
             // rc                 = sqlite3_bind_null(vm, param_no);

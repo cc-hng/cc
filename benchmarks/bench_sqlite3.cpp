@@ -29,7 +29,7 @@ static void init_sqlite3() {
     for (int i = 0; i < 100000; i++) {
         std::string name = fmt::format("A{}", i + 1);
         int age          = i % 100 + 1;
-        kSqlConn.execute<void>("INSERT INTO user(name, age) VALUES (?, ?)", name, age);
+        kSqlConn.execute("INSERT INTO user(name, age) VALUES (?, ?)", name, age);
     }
     kSqlConn.execute("COMMIT");
 }
@@ -43,7 +43,7 @@ static void bench_sqlite3(bench::Bench& b) {
         bench::doNotOptimizeAway(r);
     });
     b.run("insert", [&] {
-        kSqlConn.execute<void>("insert into user(name, age) values (?, ?)", "B111", 111);
+        kSqlConn.execute("insert into user(name, age) values (?, ?)", "B111", 111);
     });
 }
 

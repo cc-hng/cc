@@ -27,6 +27,10 @@ public:
 
     void open(std::string_view sourcename, int timeout = -1) {
         WriteLock<MutexPolicy> _lck(mtx_);
+        if (conn_) {
+            throw std::runtime_error("sqlite3 already opened !!!");
+        }
+
         int mode = SQLITE_OPEN_READWRITE;
         if (sourcename == ":memory:") {
             mode |= SQLITE_OPEN_MEMORY;
@@ -58,6 +62,75 @@ public:
         }
     }
 
+    template <typename R = void, typename... Args>
+    std::enable_if_t<!std::is_void_v<R>, std::vector<R>>
+    execute(std::string_view stmt, Args&&... args) {
+        WriteLock<MutexPolicy> _lck(mtx_);
+        return execute_impl<R>(stmt, std::forward<Args>(args)...);
+    }
+
+    template <typename R = void, typename... Args>
+    std::enable_if_t<std::is_void_v<R>, void>
+    execute(std::string_view stmt, Args&&... args) {
+        WriteLock<MutexPolicy> _lck(mtx_);
+        execute_impl<void>(stmt, std::forward<Args>(args)...);
+    }
+
+private:
+    template <typename T>
+    static void sqlite3pp_bind(sqlite3_stmt* vm, int param_no, T&& t) {
+        using T0 = std::decay_t<T>;
+        int rc   = 0;
+
+        if constexpr (std::is_integral_v<T0>) {
+            if constexpr (sizeof(T0) <= 4) {
+                rc = sqlite3_bind_int(vm, param_no, static_cast<int>(std::forward<T>(t)));
+            } else {
+                rc = sqlite3_bind_int64(vm, param_no,
+                                        static_cast<int64_t>(std::forward<T>(t)));
+            }
+        } else if constexpr (std::is_same_v<T0, float> || std::is_same_v<T0, double>) {
+            rc = sqlite3_bind_double(vm, param_no, std::forward<T>(t));
+        } else if constexpr (std::is_same_v<T0, const char*>) {
+            rc = sqlite3_bind_text(vm, param_no, t, -1, SQLITE_TRANSIENT);
+        } else if constexpr (std::is_same_v<T0, std::string>
+                             || std::is_same_v<T0, std::string_view>) {
+            // rc                 = sqlite3_bind_null(vm, param_no);
+            rc = sqlite3_bind_text(vm, param_no, t.data(), t.size(), SQLITE_TRANSIENT);
+        } else if constexpr (std::is_same_v<T0, std::vector<char>>) {
+            rc = sqlite3_bind_text(vm, param_no, t.data(), t.size(), SQLITE_TRANSIENT);
+        } else {
+            throw std::runtime_error("Unknown sqlite3 type !!!");
+        }
+
+        if (rc != SQLITE_OK) {
+            throw std::runtime_error(std::string("sqlite3_bind err:") + std::to_string(rc));
+        }
+    }
+
+    template <typename T>
+    static void sqlite3pp_column(sqlite3_stmt* vm, int column, T& t) {
+        if constexpr (std::is_integral_v<T>) {
+            if constexpr (sizeof(t) <= 4) {
+                t = sqlite3_column_int(vm, column);
+            } else {
+                t = sqlite3_column_int64(vm, column);
+            }
+        } else if constexpr (std::is_same_v<double, T> || std::is_same_v<T, float>) {
+            t = sqlite3_column_double(vm, column);
+        } else if constexpr (std::is_same_v<T, std::string>) {
+            auto s  = (const char*)sqlite3_column_text(vm, column);
+            int len = sqlite3_column_bytes(vm, column);
+            t       = std::string(s, len);
+        } else if constexpr (std::is_same_v<T, std::vector<char>>) {
+            auto blob = (const char*)sqlite3_column_blob(vm, column);
+            int len   = sqlite3_column_bytes(vm, column);
+            t         = std::vector<char>(blob, blob + len);
+        } else {
+            throw std::runtime_error("Unknown sqlite3 type !!!");
+        }
+    }
+
     /*
     ** Execute an SQL statement.
     ** Return a Cursor object if the statement is a query, otherwise
@@ -65,12 +138,11 @@ public:
     */
     template <typename R, typename... Args>
     std::conditional_t<std::is_void_v<R>, void, std::vector<R>>
-    execute(std::string_view stmt, Args&&... args) {
+    execute_impl(std::string_view stmt, Args&&... args) {
         int res;
         sqlite3_stmt* vm;
         const char* tail;
 
-        WriteLock<MutexPolicy> _lck(mtx_);
         check_conn();
 
         res = sqlite3_prepare_v3(conn_, stmt.data(), -1, 0, &vm, &tail);
@@ -141,63 +213,6 @@ public:
             sqlite3_finalize(vm);
         } else {
             throw std::runtime_error("R type error !!!");
-        }
-    }
-
-    void execute(std::string_view stmt) { execute<void>(stmt); }
-
-private:
-    template <typename T>
-    static void sqlite3pp_bind(sqlite3_stmt* vm, int param_no, T&& t) {
-        using T0 = std::decay_t<T>;
-        int rc   = 0;
-
-        if constexpr (std::is_integral_v<T0>) {
-            if constexpr (sizeof(T0) <= 4) {
-                rc = sqlite3_bind_int(vm, param_no, static_cast<int>(std::forward<T>(t)));
-            } else {
-                rc = sqlite3_bind_int64(vm, param_no,
-                                        static_cast<int64_t>(std::forward<T>(t)));
-            }
-        } else if constexpr (std::is_same_v<T0, float> || std::is_same_v<T0, double>) {
-            rc = sqlite3_bind_double(vm, param_no, std::forward<T>(t));
-        } else if constexpr (std::is_same_v<T0, const char*>) {
-            rc = sqlite3_bind_text(vm, param_no, t, -1, SQLITE_TRANSIENT);
-        } else if constexpr (std::is_same_v<T0, std::string>
-                             || std::is_same_v<T0, std::string_view>) {
-            // rc                 = sqlite3_bind_null(vm, param_no);
-            rc = sqlite3_bind_text(vm, param_no, t.data(), t.size(), SQLITE_TRANSIENT);
-        } else if constexpr (std::is_same_v<T0, std::vector<char>>) {
-            rc = sqlite3_bind_text(vm, param_no, t.data(), t.size(), SQLITE_TRANSIENT);
-        } else {
-            throw std::runtime_error("Unknown sqlite3 type !!!");
-        }
-
-        if (rc != SQLITE_OK) {
-            throw std::runtime_error(std::string("sqlite3_bind err:") + std::to_string(rc));
-        }
-    }
-
-    template <typename T>
-    static void sqlite3pp_column(sqlite3_stmt* vm, int column, T& t) {
-        if constexpr (std::is_integral_v<T>) {
-            if constexpr (sizeof(t) <= 4) {
-                t = sqlite3_column_int(vm, column);
-            } else {
-                t = sqlite3_column_int64(vm, column);
-            }
-        } else if constexpr (std::is_same_v<double, T> || std::is_same_v<T, float>) {
-            t = sqlite3_column_double(vm, column);
-        } else if constexpr (std::is_same_v<T, std::string>) {
-            auto s  = (const char*)sqlite3_column_text(vm, column);
-            int len = sqlite3_column_bytes(vm, column);
-            t       = std::string(s, len);
-        } else if constexpr (std::is_same_v<T, std::vector<char>>) {
-            auto blob = (const char*)sqlite3_column_blob(vm, column);
-            int len   = sqlite3_column_bytes(vm, column);
-            t         = std::vector<char>(blob, blob + len);
-        } else {
-            throw std::runtime_error("Unknown sqlite3 type !!!");
         }
     }
 

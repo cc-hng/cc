@@ -35,10 +35,4 @@ private:
     std::list<BenchFn> bench_list_;
 };
 
-#define BENCHMARK_MAIN              \
-    int main() {                    \
-        BenchRegistry::get().run(); \
-        return 0;                   \
-    }
-
 #define BENCHMARK_REGISTE(fn) CC_CALL_OUTSIDE(BenchRegistry::get().registe(fn))

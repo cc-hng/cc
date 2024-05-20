@@ -16,6 +16,8 @@ public:
       , origin_(10) {}
 
     void start() {
+        app_.serve_static("/public", "/data/www/html");
+
         app_.Get("/api/a",
                  [](const auto& req, auto& resp,
                     const auto& go) -> boost::asio::awaitable<void> {

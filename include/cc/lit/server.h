@@ -79,7 +79,7 @@ public:
                 http::response<http::string_body> resp{http::status::internal_server_error,
                                                        req.version()};
                 resp.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-                resp.set(http::field::content_type, get_mime_type(path));
+                resp.set(http::field::content_type, detail::get_mime_type(path));
                 resp.body() = ec.what();
                 resp.keep_alive(req.keep_alive());
                 msg = std::move(resp);
@@ -93,7 +93,7 @@ public:
             if (method == http::verb::head) {
                 http::response<http::empty_body> resp{http::status::ok, req.version()};
                 resp.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-                resp.set(http::field::content_type, get_mime_type(path));
+                resp.set(http::field::content_type, detail::get_mime_type(path));
                 resp.content_length(size);
                 resp.keep_alive(req.keep_alive());
                 msg = std::move(resp);
@@ -103,7 +103,7 @@ public:
                                                      std::make_tuple(http::status::ok,
                                                                      req.version())};
                 resp.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-                resp.set(http::field::content_type, get_mime_type(path));
+                resp.set(http::field::content_type, detail::get_mime_type(path));
                 resp.content_length(size);
                 resp.keep_alive(req.keep_alive());
                 msg = std::move(resp);

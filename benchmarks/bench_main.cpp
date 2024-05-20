@@ -1,3 +1,6 @@
 #include "common.h"
 
-BENCHMARK_MAIN
+int main() {
+    BenchRegistry::get().run();
+    return 0;
+}

@@ -59,7 +59,11 @@ constexpr bool is_awaitable_v = is_awaitable<T>::value;
 template <typename F, typename... Args>
 struct is_callable {
     // SFINAE  Check
+#if __cplusplus >= 201703L
+    template <typename T, typename Dummy = typename std::invoke_result_t<T, Args...>>
+#else
     template <typename T, typename Dummy = typename std::result_of<T(Args...)>::type>
+#endif
     static constexpr std::true_type check(std::nullptr_t dummy) {
         return std::true_type{};
     };

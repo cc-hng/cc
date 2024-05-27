@@ -4,7 +4,7 @@
 
 #define N 10
 
-asio::task<void> producer(auto sender) {
+asio::task<void> producer(cc::chan::Sender<int> sender) {
     for (int i = 0; i < N; i++) {
         co_await cc::async_sleep(1000);
         SPDLOG_INFO("[producer] send {}", i + 1);
@@ -12,7 +12,7 @@ asio::task<void> producer(auto sender) {
     }
 }
 
-asio::task<void> consumer(auto receiver) {
+asio::task<void> consumer(cc::chan::Receiver<int> receiver) {
     for (;;) {
         // 模拟长时间任务
         co_await cc::async_sleep(1500);

@@ -220,8 +220,12 @@ private:
                                         const http_next_handle_t&>) {
             f0 = std::forward<Fn>(f);
         } else {
+#if __cplusplus >= 201703L
+            using Ret = std::invoke_result_t<Fn, const http_request_t&, http_response_t&>;
+#else
             using Ret = std::result_of_t<Fn(const http_request_t&, http_response_t&)>;
-            f0        = [f = std::forward<Fn>(
+#endif
+            f0 = [f = std::forward<Fn>(
                       f)](const http_request_t& req, http_response_t& resp,
                           const http_next_handle_t& go) -> boost::asio::awaitable<void> {
                 if constexpr (cc::is_awaitable_v<Ret>) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <string>
 #include <type_traits>
 #include <boost/callable_traits.hpp>
 #include <boost/hana.hpp>
@@ -9,6 +10,7 @@
 #include <cc/type_traits.h>
 
 namespace cc {
+namespace lit {
 //
 namespace detail {
 
@@ -18,7 +20,7 @@ namespace hana = boost::hana;
 class MakeRouteFunctor {
 public:
     template <typename Fn, typename = hana::when<!std::is_member_function_pointer_v<Fn>>>
-    constexpr decltype(auto) operator()(Fn && fn) const {
+    constexpr decltype(auto) operator()(Fn&& fn) const {
         using namespace cc::lit;
         using Ret     = ct::return_type_t<Fn>;
         using Args    = ct::args_t<Fn, std::tuple>;
@@ -43,7 +45,7 @@ public:
 
     template <typename Fn, typename Self,
               typename = hana::when<std::is_member_function_pointer_v<Fn>>>
-    constexpr decltype(auto) operator()(const Fn & fn, Self self) const {
+    constexpr decltype(auto) operator()(const Fn& fn, Self self) const {
         using Ret     = ct::return_type_t<Fn>;
         using Args    = ct::args_t<Fn, std::tuple>;
         using Request = std::decay_t<std::tuple_element_t<1, Args>>;
@@ -66,4 +68,5 @@ public:
 
 [[maybe_unused]] constexpr detail::MakeRouteFunctor make_route{};
 
+}  // namespace lit
 }  // namespace cc

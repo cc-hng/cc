@@ -270,8 +270,8 @@ private:
         // Start listening for connections
         // const auto backlog = asio::socket_base::max_listen_connections;
         const auto backlog = 128;
-        acceptor.listen(backlog);
-        Semaphore<std::mutex> sem(128);
+        acceptor.listen(asio::socket_base::max_listen_connections);
+        Semaphore<std::mutex> sem(backlog);
 
         for (;;) {
             co_await sem.acquire();

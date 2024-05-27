@@ -33,8 +33,8 @@ public:
             co_return resp.set_content("<p1>hello,world3</p1>", "text/html");
         });
 
-        app_.Post("/api/e", cc::make_route(&HttpServer::api_e, this));
-        app_.Post("/api/f", cc::make_route(&HttpServer::api_f, this));
+        app_.Post("/api/e", cc::lit::make_route(&HttpServer::api_e, this));
+        app_.Post("/api/f", cc::lit::make_route(&HttpServer::api_f, this));
         app_.start();
     }
 

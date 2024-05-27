@@ -1,13 +1,60 @@
 #pragma once
 
 #include <functional>
+#include <iomanip>
 #include <memory>
+#include <sstream>
+#include <string>
+#include <string_view>
 #include <unordered_map>
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 
 namespace cc {
 namespace lit {
+
+namespace detail {
+//
+/// @urlencode / urldecode
+[[maybe_unused]]
+static std::string urlencode(std::string_view raw) {
+    std::ostringstream oss;
+    oss.fill('0');
+    oss << std::hex;
+    for (unsigned char c : raw) {
+        if (std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+            oss << c;
+        } else {
+            oss << '%' << std::setw(2) << std::uppercase << (int)c;
+        }
+    }
+    return oss.str();
+}
+
+[[maybe_unused]]
+static std::string urldecode(std::string_view raw) {
+    std::string result;
+    result.reserve(raw.size());
+
+    for (std::size_t i = 0; i < raw.size(); ++i) {
+        if (raw[i] == '%' && i + 2 < raw.size()) {
+            int value;
+            std::istringstream is(std::string(raw.substr(i + 1, 2)));
+            if (is >> std::hex >> value) {
+                result += static_cast<char>(value);
+                i += 2;
+            }
+        } else if (raw[i] == '+') {
+            result += ' ';
+        } else {
+            result += raw[i];
+        }
+    }
+
+    return result;
+}
+
+}  // namespace detail
 
 namespace asio   = boost::asio;
 namespace beast  = boost::beast;
@@ -34,6 +81,7 @@ struct http_request_t {
         this->path         = path;
         if (!query.empty()) {
             typename kv_t::element_type out;
+            query         = detail::urldecode(query);
             const char* s = &*query.begin();
             int left      = query.size();
             int len;

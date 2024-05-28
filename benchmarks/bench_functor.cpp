@@ -1,5 +1,5 @@
 #include "common.h"
-#include <cc/function.h>
+#include <cc/functor.h>
 
 inline int add(int a, int b) {
     return a + b;

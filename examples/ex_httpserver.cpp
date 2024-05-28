@@ -5,6 +5,7 @@
 #include <cc/asio/core.h>
 #include <cc/json.h>
 #include <cc/lit/core.h>
+#include <cc/lit/multipart_parser.h>
 #include <cc/lit/util.h>
 #include <cc/type_traits.h>
 #include <fmt/core.h>
@@ -35,6 +36,17 @@ public:
 
         app_.Post("/api/e", cc::lit::make_route(&HttpServer::api_e, this));
         app_.Post("/api/f", cc::lit::make_route(&HttpServer::api_f, this));
+
+        app_.Post("/api/upload", [](const cc::lit::http_request_t& req, auto& resp) {
+            auto result = cc::lit::multipart_formdata_parse(req);
+            for (const auto& f : result) {
+                fmt::print("name:{}, filename:{}, content_type:{}\n", f.name, f.filename,
+                           f.content_type);
+                fmt::print("content:{}\n", f.content);
+                fmt::print("---------------------------------------------------------\n");
+            }
+            resp.set_content(R"({"code":200,"data":{}})");
+        });
         app_.start();
     }
 

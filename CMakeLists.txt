@@ -9,9 +9,9 @@ project(
 # https://cmake.org/cmake/help/latest/variable/PROJECT_IS_TOP_LEVEL.html
 string(COMPARE EQUAL ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR} PROJECT_IS_TOP_LEVEL)
 
-option(CC_ENABLE_YYJSON "Enable yyjson" ON)
 option(CC_ENABLE_COROUTINE "Enable c++2x coroutines" ON)
 option(CC_ENABLE_IO_URING "Enable io_uring" ON)
+option(CC_WITH_YYJSON "With yyjson" ON)
 option(CC_WITH_SQLITE3 "With sqlite3" ON)
 option(CC_ENABLE_INSTALL "Enable install" ${PROJECT_IS_TOP_LEVEL})
 option(CC_BUILD_TESTS "Build unittest" ${PROJECT_IS_TOP_LEVEL})
@@ -46,6 +46,8 @@ if(CC_ENABLE_IO_URING)
 
   set(CC_ENABLE_IO_URING ${CC_HAS_IO_URING})
 endif()
+
+configure_file(${CMAKE_CURRENT_LIST_DIR}/include/cc/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/_gen/cc/config.h @ONLY)
 
 #####################################
 # third-party packages
@@ -82,7 +84,7 @@ if(CC_BUILD_BENCHES)
   include(cmake/FetchNanobench.cmake)
 endif()
 
-if(CC_ENABLE_YYJSON)
+if(CC_WITH_YYJSON)
   include(cmake/FetchYyjson.cmake)
 endif()
 
@@ -129,7 +131,7 @@ target_link_libraries(
             std::coroutines
             Threads::Threads
             Boost::headers
-            $<$<BOOL:${CC_ENABLE_YYJSON}>:yyjson>)
+            $<$<BOOL:${CC_WITH_YYJSON}>:yyjson>)
 
 if(CC_WITH_SQLITE3)
   target_link_libraries(3rd_dependencies INTERFACE sqlite3)
@@ -149,12 +151,10 @@ endif()
 #####################################
 add_library(${PROJECT_NAME} INTERFACE)
 target_link_libraries(${PROJECT_NAME} INTERFACE 3rd_dependencies)
-target_include_directories(${PROJECT_NAME} INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-                                                     $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>)
-target_compile_definitions(
+target_include_directories(
   ${PROJECT_NAME}
-  INTERFACE $<$<BOOL:${CC_ENABLE_YYJSON}>:CC_ENABLE_YYJSON> $<$<BOOL:${CC_ENABLE_COROUTINE}>:CC_ENABLE_COROUTINE>
-            $<$<BOOL:${CC_WITH_SQLITE3}>:CC_ENABLE_SQLITE3>)
+  INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/_gen>
+            $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>)
 
 #####################################
 # test

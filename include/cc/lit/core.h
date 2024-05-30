@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cc/config.h>
+
 #ifndef CC_ENABLE_COROUTINE
 #    error "Expect c++20 coroutines !!!"
 #endif

@@ -1,0 +1,10 @@
+#pragma once
+
+// enable c++20 coroutine
+#cmakedefine CC_ENABLE_COROUTINE
+
+// build with yyjson
+#cmakedefine CC_WITH_YYJSON
+
+// build with sqlite3
+#cmakedefine CC_WITH_SQLITE3

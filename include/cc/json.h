@@ -1,9 +1,5 @@
 #pragma once
 
-#ifndef CC_ENABLE_YYJSON
-#    error "Recompile with CC_ENABLE_YYJSON"
-#endif
-
 #include <list>
 #include <map>
 #include <optional>
@@ -13,8 +9,13 @@
 #include <unordered_map>
 #include <vector>
 #include <boost/hana.hpp>
+#include <cc/config.h>
 #include <gsl/gsl>
 #include <yyjson.h>
+
+#ifndef CC_WITH_YYJSON
+#    error "Recompile with CC_WITH_YYJSON"
+#endif
 
 namespace cc {
 namespace json {

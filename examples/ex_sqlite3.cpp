@@ -38,9 +38,11 @@ int main() {
     sqlconn.execute(R"(INSERT INTO user (name, age) VALUES ('Bob', 25))");
     sqlconn.execute(R"(INSERT INTO user (name, age) VALUES ('Charlie', 35))");
 
-    // std::string name = "Alice";
-    // int age          = 30;
-    // sqlconn.execute<void>("select * from user where age = ? and name = ?", age, name);
+    std::string name = "Alice";
+    int age          = 30;
+    auto r5          = sqlconn.execute<std::tuple<int>>(
+        "select count(*) as cnt from user where age = ? and name = ?", age, name);
+    fmt::print("cnt: {}\n", std::get<0>(r5.at(0)));
 
     auto r1 = sqlconn.execute<cnt_result_t>("select count(*) as cnt from user");
     fmt::print("cnt: {}\n", r1.at(0).cnt);

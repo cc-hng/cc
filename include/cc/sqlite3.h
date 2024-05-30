@@ -1,17 +1,18 @@
 #pragma once
 
-#ifndef CC_ENABLE_SQLITE3
-#    error "Recompile with CC_WITH_SQLITE3"
-#endif
-
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <unordered_map>
 #include <boost/hana.hpp>
+#include <cc/config.h>
 #include <cc/type_traits.h>
 #include <cc/util.h>
 #include <sqlite3.h>
+
+#ifndef CC_WITH_SQLITE3
+#    error "Recompile with CC_WITH_SQLITE3"
+#endif
 
 namespace cc {
 

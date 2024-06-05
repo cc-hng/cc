@@ -1,11 +1,14 @@
 #pragma once
 
 #include <any>
+#include <functional>
 #include <shared_mutex>
 #include <string>
 #include <unordered_map>
 #include <boost/callable_traits.hpp>
 #include <boost/core/noncopyable.hpp>
+#include <boost/hana.hpp>
+#include <cc/type_traits.h>
 #include <cc/util.h>
 
 namespace cc {

@@ -49,3 +49,13 @@ struct api_a_rep_t {
 };
 
 // clang-format on
+
+struct api_b_request_t {
+    int a;
+};
+BOOST_HANA_ADAPT_STRUCT(api_b_request_t, a);
+
+struct api_b_reply_t {
+    int a;
+};
+BOOST_HANA_ADAPT_STRUCT(api_b_reply_t, a);

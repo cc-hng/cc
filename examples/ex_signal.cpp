@@ -33,7 +33,7 @@ void on_game_over2() {
 void on_vel(int x, int y) {
     fmt::print("[unknown] speed x: {}, y: {}\n", x, y);
     if (x < 0) {
-        kSig.emit("game_over");
+        kSig.pub("game_over");
     }
 }
 
@@ -43,17 +43,17 @@ void on_pos(Point3D pos) {
 
 int main() {
     auto& signal = kSig;
-    signal.register_handler("vel", on_vel);
-    signal.register_handler("game_over", on_game_over1);
-    signal.register_handler("game_over", on_game_over2);
-    signal.register_handler("pos", on_pos);
+    signal.sub("vel", on_vel);
+    signal.sub("game_over", on_game_over1);
+    signal.sub("game_over", on_game_over2);
+    signal.sub("pos", on_pos);
 
     // player by shared_ptr
     {
         auto player = std::make_shared<Player>("shared_ptr");
-        signal.register_handler("vel", &Player::on_vel, player);
-        signal.register_handler("game_over", &Player::on_game_over, player);
-        signal.register_handler("pos", &Player::on_pos, player);
+        signal.sub("vel", &Player::on_vel, player);
+        signal.sub("game_over", &Player::on_game_over, player);
+        signal.sub("pos", &Player::on_pos, player);
     }
 
     // player on stack
@@ -65,11 +65,11 @@ int main() {
     //     signal.emit("vel", -20, 20);
     // }
 
-    signal.emit("vel", 12, 12);
-    signal.emit("vel", 10, 10);
-    signal.emit("pos", Point3D{1, 2, 3});
+    signal.pub("vel", 12, 12);
+    signal.pub("vel", 10, 10);
+    signal.pub("pos", Point3D{1, 2, 3});
     Point3D pt = {3, 4, 5};
-    signal.emit("pos", pt);
-    signal.emit("game_over");
+    signal.pub("pos", pt);
+    signal.pub("game_over");
     return 0;
 }

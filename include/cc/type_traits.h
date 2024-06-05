@@ -80,4 +80,16 @@ struct is_callable {
 template <typename F, typename... Args>
 constexpr bool is_callable_v = is_callable<F, Args...>::value;
 
+// 定义一个 remove_member_pointer_t 实现
+template <typename T>
+struct remove_member_pointer;
+
+template <typename Cls, typename R, typename... Args>
+struct remove_member_pointer<R (Cls::*)(Args...)> {
+    using type = R(Args...);
+};
+
+template <typename T>
+using remove_member_pointer_t = typename remove_member_pointer<T>::type;
+
 }  // namespace cc

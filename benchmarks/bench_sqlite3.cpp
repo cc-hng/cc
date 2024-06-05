@@ -1,7 +1,11 @@
-#include "common.h"
-#include <boost/hana.hpp>
-#include <cc/sqlite3.h>
-#include <fmt/core.h>
+#include <cc/config.h>
+
+#ifdef CC_WITH_SQLITE3
+
+#    include "common.h"
+#    include <boost/hana.hpp>
+#    include <cc/sqlite3.h>
+#    include <fmt/core.h>
 
 // clang-format off
 struct user_t {
@@ -48,3 +52,5 @@ static void bench_sqlite3(bench::Bench& b) {
 }
 
 BENCHMARK_REGISTE(bench_sqlite3);
+
+#endif

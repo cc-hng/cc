@@ -17,7 +17,7 @@ template <typename T, typename = std::enable_if_t<(std::is_constructible_v<T>
 struct SingletonProvider {
     using value_type = T;
 
-    static T& get() {
+    static T& instance() {
         static T ins;
         return ins;
     }

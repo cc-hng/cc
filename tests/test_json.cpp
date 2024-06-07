@@ -1,4 +1,5 @@
-#ifdef CC_ENABLE_YYJSON
+#include "cc/config.h"
+#ifdef CC_WITH_YYJSON
 
 #    include "cc/json.h"
 #    include <map>
@@ -61,23 +62,25 @@ TEST(yyjson, map_key_mem) {
 }
 
 TEST(yyjson, yyjson_val) {
-    cc::json::parse<yyjson_val*>(car_json, [](yyjson_val* root) {
-        EXPECT_TRUE(yyjson_is_obj(root));
-        EXPECT_NE(yyjson_obj_get(root, "make"), nullptr);
-        EXPECT_NE(yyjson_obj_get(root, "model"), nullptr);
-        EXPECT_NE(yyjson_obj_get(root, "year"), nullptr);
-        EXPECT_NE(yyjson_obj_get(root, "tire_pressure"), nullptr);
-        EXPECT_EQ(yyjson_obj_get(root, "owner"), nullptr);
-    });
+    cc::json::JsonParser parser(car_json);
 
-    using M = std::map<std::string, yyjson_val*>;
-    cc::json::parse<M>(car_json, [](const M& m) {
-        EXPECT_EQ(m.count("make"), 1);
-        EXPECT_EQ(m.count("model"), 1);
-        EXPECT_EQ(m.count("year"), 1);
-        EXPECT_EQ(m.count("tire_pressure"), 1);
-        EXPECT_EQ(m.count("owner"), 0);
-    });
+    auto root = parser.parse<yyjson_val*>();
+    EXPECT_TRUE(yyjson_is_obj(root));
+    EXPECT_NE(yyjson_obj_get(root, "make"), nullptr);
+    EXPECT_NE(yyjson_obj_get(root, "model"), nullptr);
+    EXPECT_NE(yyjson_obj_get(root, "year"), nullptr);
+    EXPECT_NE(yyjson_obj_get(root, "tire_pressure"), nullptr);
+    EXPECT_EQ(yyjson_obj_get(root, "owner"), nullptr);
+
+    using M = std::unordered_map<std::string, yyjson_val*>;
+    auto m  = parser.parse<M>();
+    EXPECT_EQ(m.count("make"), 1);
+    EXPECT_EQ(m.count("model"), 1);
+    EXPECT_EQ(m.count("year"), 1);
+    EXPECT_EQ(m.count("tire_pressure"), 1);
+    EXPECT_EQ(m.count("owner"), 0);
+
+    EXPECT_TRUE(true);
 }
 
 #endif

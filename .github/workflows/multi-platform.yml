@@ -52,10 +52,10 @@ jobs:
 
     - uses: actions/cache@v4
       with:
-        path: "**/fetchcontent_modules"
-        key: ${{ github.workflow }}-fetchcontent-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+        path: "~/.cmake/fetchcontent_modules"
+        key: ${{ runner.os }}-fetchcontent-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
         restore-keys: |
-          ${{ github.workflow }}-fetchcontent-modules-
+          ${{ runner.os }}-fetchcontent-modules-
 
     - name: Set reusable strings
       # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.

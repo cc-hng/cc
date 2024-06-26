@@ -3,13 +3,14 @@
 #include <list>
 #include <map>
 #include <optional>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <variant>
 #include <vector>
 #include <boost/hana.hpp>
 #include <cc/config.h>
+#include <cc/util.h>
 #include <gsl/gsl>
 #include <yyjson.h>
 
@@ -22,13 +23,12 @@ namespace json {
 
 namespace hana = boost::hana;
 
-namespace detail {
+struct unknown_t {};
+struct null_t {};
+static constexpr const null_t null;
+using value_t = std::variant<unknown_t, null_t, bool, int, double, std::string>;
 
-inline void cassert(bool ok, std::string_view msg) {
-    if (!ok) {
-        throw std::runtime_error(msg.data());
-    }
-}
+namespace detail {
 
 // null
 // a boolean
@@ -47,7 +47,7 @@ struct yyjson_convert;
         }                                                               \
                                                                         \
         static void from_json(yyjson_val* js, type& rhs) {              \
-            cassert(is_type(js), "unknown number type");                \
+            ASSERT(is_type(js), "unknown number type");                 \
             rhs = decode(js);                                           \
         }                                                               \
     }
@@ -83,7 +83,7 @@ struct yyjson_convert<std::string> {
     }
 
     static void from_json(yyjson_val* js, std::string& rhs) {
-        cassert(yyjson_is_str(js), "std::string expect a json string");
+        ASSERT(yyjson_is_str(js), "std::string expect a json string");
         rhs = std::string(yyjson_get_str(js), yyjson_get_len(js));
     }
 };
@@ -96,7 +96,7 @@ struct yyjson_convert<std::string_view> {
     }
 
     static void from_json(yyjson_val* js, std::string_view& rhs) {
-        cassert(yyjson_is_str(js), "std::string_view expect a json string");
+        ASSERT(yyjson_is_str(js), "std::string_view expect a json string");
         rhs = std::string_view(yyjson_get_str(js), yyjson_get_len(js));
     }
 };
@@ -114,7 +114,7 @@ struct yyjson_convert<std::vector<T, A>> {
     }
 
     static void from_json(yyjson_val* js, std::vector<T, A>& rhs) {
-        cassert(yyjson_is_arr(js), "std::vector<T> expect a json array");
+        ASSERT(yyjson_is_arr(js), "std::vector<T> expect a json array");
         rhs.reserve(yyjson_arr_size(js));
         size_t idx, max;
         yyjson_val* item;
@@ -139,7 +139,7 @@ struct yyjson_convert<std::list<T, A>> {
     }
 
     static void from_json(yyjson_val* js, std::list<T, A>& rhs) {
-        cassert(yyjson_is_arr(js), "std::list<T> expect a json array");
+        ASSERT(yyjson_is_arr(js), "std::list<T> expect a json array");
         size_t idx, max;
         yyjson_val* item;
         yyjson_arr_foreach(js, idx, max, item) {
@@ -165,7 +165,7 @@ struct yyjson_convert<std::map<std::string, V, C, A>> {
     }
 
     static void from_json(yyjson_val* js, std::map<std::string, V, C, A>& rhs) {
-        cassert(yyjson_is_obj(js), "std::map<K,V> expect a json object");
+        ASSERT(yyjson_is_obj(js), "std::map<K,V> expect a json object");
         size_t idx, max;
         yyjson_val *key, *val;
         yyjson_obj_foreach(js, idx, max, key, val) {
@@ -193,7 +193,7 @@ struct yyjson_convert<std::unordered_map<std::string, V, C, A>> {
     }
 
     static void from_json(yyjson_val* js, std::unordered_map<std::string, V, C, A>& rhs) {
-        cassert(yyjson_is_obj(js), "std::unordered_map<K,V> expect a json object");
+        ASSERT(yyjson_is_obj(js), "std::unordered_map<K,V> expect a json object");
         size_t idx, max;
         yyjson_val *key, *val;
         yyjson_obj_foreach(js, idx, max, key, val) {
@@ -230,6 +230,43 @@ struct yyjson_convert<std::optional<T>> {
     }
 };
 
+// json value
+template <>
+struct yyjson_convert<value_t> {
+    static yyjson_mut_val* to_json(yyjson_mut_doc* doc, const value_t& rhs) {
+        yyjson_mut_val* val = nullptr;
+        std::visit(
+            [&](auto&& v) {
+                using T = std::decay_t<decltype(v)>;
+                if constexpr (std::is_same_v<T, null_t>) {
+                    val = yyjson_mut_null(doc);
+                } else if constexpr (!std::is_same_v<T, unknown_t>) {
+                    val = yyjson_convert<T>::to_json(doc, v);
+                } else {
+                    ASSERT(false, "Unknwon json type");
+                }
+            },
+            rhs);
+        return val;
+    }
+
+    static void from_json(yyjson_val* js, value_t& rhs) {
+        if (yyjson_is_bool(js)) {
+            rhs = yyjson_get_bool(js);
+        } else if (yyjson_is_int(js)) {
+            rhs = yyjson_get_int(js);
+        } else if (yyjson_is_real(js)) {
+            rhs = yyjson_get_real(js);
+        } else if (yyjson_is_str(js)) {
+            rhs = std::string(yyjson_get_str(js), yyjson_get_len(js));
+        } else if (yyjson_is_null(js)) {
+            rhs = null;
+        } else {
+            ASSERT(false, "Unknown json type" + std::to_string(yyjson_get_type(js)));
+        }
+    }
+};
+
 template <typename T>
 struct yyjson_convert {
     static_assert(hana::Struct<T>::value, "T expect be a reflection type");
@@ -251,7 +288,7 @@ struct yyjson_convert {
     }
 
     static void from_json(yyjson_val* js, T& rhs) {
-        cassert(yyjson_is_obj(js), "common T expect a json object");
+        ASSERT(yyjson_is_obj(js), "common T expect a json object");
         hana::for_each(hana::keys(rhs), [&](const auto& key) {
             auto keyname = hana::to<char const*>(key);
             auto& member = hana::at_key(rhs, key);
@@ -260,7 +297,7 @@ struct yyjson_convert {
                 auto val = yyjson_obj_get(js, keyname);
                 yyjson_convert<Member>::from_json(val, member);
             } catch (...) {
-                cassert(false, std::string("Parse key(") + keyname + ") error.");
+                ASSERT(false, std::string("Parse key(") + keyname + ") error.");
             }
         });
     }
@@ -278,7 +315,8 @@ T convert(yyjson_val* val) {
 class JsonParser {
 public:
     JsonParser(std::string_view jstr) {
-        doc_  = yyjson_read(jstr.data(), jstr.size(), 0);
+        doc_ = yyjson_read(jstr.data(), jstr.size(), 0);
+        ASSERT(doc_, "Parse error");
         root_ = yyjson_doc_get_root(doc_);
     }
 
@@ -306,6 +344,47 @@ T parse(std::string_view jstr) {
 }
 
 template <typename T>
+T merge(std::string_view orig, std::string_view tomerge) {
+    class Parser {
+    public:
+        Parser(std::string_view orig, std::string_view tomerge) {
+            doc1_ = yyjson_read(orig.data(), orig.size(), 0);
+            doc2_ = yyjson_read(tomerge.data(), tomerge.size(), 0);
+            ASSERT(doc1_ && doc2_, "Merge parse error");
+            merge_doc_ = yyjson_mut_doc_new(NULL);
+            auto root  = yyjson_merge_patch(merge_doc_, yyjson_doc_get_root(doc1_),
+                                            yyjson_doc_get_root(doc2_));
+            yyjson_mut_doc_set_root(merge_doc_, root);
+            doc_ = yyjson_mut_doc_imut_copy(merge_doc_, 0);
+        }
+
+        ~Parser() {
+            static constexpr auto jsfree = [](auto*& doc, auto&& method) {
+                if (doc) {
+                    method(doc);
+                    doc = NULL;
+                }
+            };
+            jsfree(doc_, yyjson_doc_free);
+            jsfree(merge_doc_, yyjson_mut_doc_free);
+            jsfree(doc1_, yyjson_doc_free);
+            jsfree(doc2_, yyjson_doc_free);
+        }
+
+        T parse() { return convert<T>(yyjson_doc_get_root(doc_)); }
+
+    private:
+        yyjson_mut_doc* merge_doc_;
+        yyjson_doc* doc_;
+        yyjson_doc* doc1_;
+        yyjson_doc* doc2_;
+    };
+
+    Parser parser(orig, tomerge);
+    return parser.parse();
+}
+
+template <typename T>
 std::string dump(const T& t) {
     auto doc  = yyjson_mut_doc_new(NULL);
     auto root = detail::yyjson_convert<T>::to_json(doc, t);
@@ -317,7 +396,7 @@ std::string dump(const T& t) {
         free((void*)json_str);
         yyjson_mut_doc_free(doc);
     });
-    detail::cassert(!err.code, err.msg);
+    ASSERT(!err.code, err.msg);
     return std::string(json_str);
 }
 

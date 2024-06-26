@@ -25,7 +25,7 @@ asio::task<void> consumer(cc::chan::Receiver<int> receiver) {
 
 int main() {
     spdlog::set_pattern(R"([%Y-%m-%dT%H:%M:%S.%e] [%^%L%$] [%t] [%s:%#] %v)");
-    auto& ap  = cc::AsioPool::get();
+    auto& ap  = cc::AsioPool::instance();
     auto& ctx = ap.get_io_context();
 
     SPDLOG_INFO("--- begin ---");

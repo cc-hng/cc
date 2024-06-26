@@ -54,7 +54,7 @@ class AsioPool final : boost::noncopyable {
     using work_guard_t = boost::asio::executor_work_guard<executor_t>;
 
 public:
-    static AsioPool& get() {
+    static AsioPool& instance() {
         static AsioPool ap;
         return ap;
     }

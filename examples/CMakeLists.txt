@@ -18,3 +18,7 @@ add_example(ex_httpserver)
 add_example(ex_wsserver)
 add_example(ex_sqlite3)
 add_example(ex_signal)
+
+add_example(ex_udp_client)
+add_example(ex_udp_server)
+

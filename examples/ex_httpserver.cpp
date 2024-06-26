@@ -64,7 +64,7 @@ private:
 };
 
 int main(int argc, char* argv[]) {
-    auto& Ap  = cc::AsioPool::get();
+    auto& Ap  = cc::AsioPool::instance();
     auto& ctx = Ap.get_io_context();
 
     HttpServer server(ctx, "0.0.0.0", 8088);

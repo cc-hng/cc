@@ -7,7 +7,7 @@
 
 class AsioDemo {
 public:
-    AsioDemo() : ap_(cc::AsioPool::get()) {}
+    AsioDemo() : ap_(cc::AsioPool::instance()) {}
 
     void run() {
         auto& ctx = ap_.get_io_context();
@@ -37,7 +37,7 @@ private:
 };
 int main() {
     spdlog::set_pattern(R"([%Y-%m-%dT%H:%M:%S.%e] [%^%L%$] [%t] [%s:%#] %v)");
-    auto& ap = cc::AsioPool::get();
+    auto& ap = cc::AsioPool::instance();
     int i    = 0;
     auto t   = ap.set_interval(1000, [&i](auto timer) {
         i++;

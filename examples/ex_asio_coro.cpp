@@ -7,7 +7,7 @@
 using namespace asio::experimental::awaitable_operators;
 using namespace std::chrono_literals;
 
-static auto& Ap = cc::AsioPool::get();
+static auto& Ap = cc::AsioPool::instance();
 
 asio::task<int> task_1() {
     co_await cc::async_sleep(300);

@@ -50,6 +50,13 @@ public:
         if (timeout > 0) {
             sqlite3_busy_timeout(conn_, timeout);
         }
+
+        // pragma
+        execute("PRAGMA journal_mode=WAL;");
+        execute("PRAGMA synchronous=NORMAL;");
+        execute("PRAGMA case_sensitive_like = ON;");
+        execute("PRAGMA locking_mode = EXCLUSIVE;");
+
         closed_ = false;
     }
 
@@ -134,10 +141,10 @@ private:
     }
 
     /*
-    ** Execute an SQL statement.
-    ** Return a Cursor object if the statement is a query, otherwise
-    ** return the number of tuples affected by the statement.
-    */
+  ** Execute an SQL statement.
+  ** Return a Cursor object if the statement is a query, otherwise
+  ** return the number of tuples affected by the statement.
+  */
     template <typename R, typename... Args>
     std::conditional_t<std::is_void_v<R>, void, std::vector<R>>
     execute_impl(std::string_view stmt, Args&&... args) {

@@ -28,7 +28,7 @@ static asio::awaitable<void> fake_thread(int idx, cc::Semaphore<std::mutex>& sem
 }
 
 int main() {
-    cc::AsioPool& ap = cc::AsioPool::get();
+    cc::AsioPool& ap = cc::AsioPool::instance();
     cc::Semaphore<std::mutex> sem(2);
 
     auto& ctx = ap.get_io_context();

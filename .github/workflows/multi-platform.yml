@@ -9,7 +9,7 @@ on:
     branches: [ "master" ]
 
 env:
-  FETCHCONTENT_BASE_DIR: ${{ github.workspace }}/fetchcontent_modules
+  FETCHCONTENT_BASE_DIR: ~/.cmake/fetchcontent_modules
 
 jobs:
   build:
@@ -73,6 +73,7 @@ jobs:
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
         -DCC_ENABLE_IO_URING=OFF
+        -DFETCHCONTENT_BASE_DIR=${{ env.FETCHCONTENT_BASE_DIR }}
         -S ${{ github.workspace }}
 
     - name: Build

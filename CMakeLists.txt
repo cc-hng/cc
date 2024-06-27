@@ -147,6 +147,10 @@ if(CC_ENABLE_IO_URING)
   target_compile_definitions(3rd_dependencies INTERFACE BOOST_ASIO_HAS_IO_URING=1 BOOST_ASIO_DISABLE_EPOLL=1)
 endif()
 
+if(WIN32)
+  target_link_libraries(3rd_dependencies INTERFACE ws2_32)
+endif()
+
 #####################################
 # third-party dependencies
 #####################################

@@ -53,6 +53,9 @@ jobs:
       shell: bash
       run: |
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+        echo "-----------------------------------------------------------------------" >> "$GITHUB_OUTPUT"
+        uname -a >> "$GITHUB_OUTPUT"
+        echo "-----------------------------------------------------------------------" >> "$GITHUB_OUTPUT"
         ${{ matrix.c_compiler }} -v >> "$GITHUB_OUTPUT"
 
     - name: Configure CMake

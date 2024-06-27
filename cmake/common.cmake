@@ -32,33 +32,33 @@ if(NOT CMAKE_CROSSCOMPILING)
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined")
 endif()
 
-# lto
-include(CheckIPOSupported)
-macro(link_time_optimization)
-  # Argument parsing
-  set(options REQUIRED)
-  set(single_value_keywords)
-  set(multi_value_keywords)
-  cmake_parse_arguments(link_time_optimization "${options}" "${single_value_keywords}" "${multi_value_keywords}"
-                        ${ARGN})
-
-  check_ipo_supported(RESULT result OUTPUT output)
-  if(result)
-    # It's available, set it for all following items
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG OFF)
-  else()
-    if(link_time_optimization_REQUIRED)
-      message(FATAL_ERROR "Link Time Optimization not supported, but listed as REQUIRED: ${output}")
-    else()
-      message(WARNING "Link Time Optimization not supported: ${output}")
-    endif()
-  endif()
-endmacro()
-
-cmake_policy(SET CMP0069 NEW)
-set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
-link_time_optimization()
+# # lto
+# include(CheckIPOSupported)
+# macro(link_time_optimization)
+#   # Argument parsing
+#   set(options REQUIRED)
+#   set(single_value_keywords)
+#   set(multi_value_keywords)
+#   cmake_parse_arguments(link_time_optimization "${options}" "${single_value_keywords}" "${multi_value_keywords}"
+#                         ${ARGN})
+#
+#   check_ipo_supported(RESULT result OUTPUT output)
+#   if(result)
+#     # It's available, set it for all following items
+#     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+#     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG OFF)
+#   else()
+#     if(link_time_optimization_REQUIRED)
+#       message(FATAL_ERROR "Link Time Optimization not supported, but listed as REQUIRED: ${output}")
+#     else()
+#       message(WARNING "Link Time Optimization not supported: ${output}")
+#     endif()
+#   endif()
+# endmacro()
+#
+# cmake_policy(SET CMP0069 NEW)
+# set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+# link_time_optimization()
 
 #####################################
 # util

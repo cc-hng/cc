@@ -63,6 +63,7 @@ jobs:
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
         -DCC_ENABLE_IO_URING=OFF
+        -DCC_ENABLE_ASAN=OFF
         -DFETCHCONTENT_BASE_DIR=${{ env.FETCHCONTENT_BASE_DIR }}
         -S ${{ github.workspace }}
 

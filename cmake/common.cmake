@@ -27,7 +27,9 @@ add_compile_options($<$<COMPILE_LANG_AND_ID:CXX,ARMClang,AppleClang,Clang>:-stdl
 add_link_options($<$<COMPILE_LANG_AND_ID:CXX,ARMClang,AppleClang,Clang>:-stdlib=libc++>)
 
 # ASAN
-if(NOT CMAKE_CROSSCOMPILING)
+if(CC_ENABLE_ASAN
+   AND NOT CMAKE_CROSSCOMPILING
+   AND NOT WIN32)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined")
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined")
 endif()

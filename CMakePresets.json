@@ -1,6 +1,10 @@
 {
-  "version": 3,
-  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
   "configurePresets": [
     {
       "name": "base",
@@ -24,17 +28,9 @@
         "CMAKE_INSTALL_PREFIX": "/opt/my/amd64",
         "CMAKE_BUILD_TYPE": "RelWithDebInfo"
       },
-      "inherits": [ "base" ]
-    },
-    {
-      "name": "ohos",
-      "toolchainFile": "/opt/ohos/toolchains/ohos_308t.toolchain.cmake",
-      "cacheVariables": {
-        "CPACK_PACKAGING_INSTALL_PREFIX": "/",
-        "CC_ENABLE_IO_URING": "ON",
-        "CMAKE_INSTALL_PREFIX": "/opt/my/ohos"
-      },
-      "inherits": [ "base" ]
+      "inherits": [
+        "base"
+      ]
     },
     {
       "name": "aarch64",
@@ -43,7 +39,9 @@
         "CPACK_PACKAGING_INSTALL_PREFIX": "/",
         "CMAKE_INSTALL_PREFIX": "/opt/my/aarch64"
       },
-      "inherits": [ "base" ]
+      "inherits": [
+        "base"
+      ]
     },
     {
       "name": "arm",
@@ -52,7 +50,50 @@
         "CPACK_PACKAGING_INSTALL_PREFIX": "/",
         "CMAKE_INSTALL_PREFIX": "/opt/my/arm32"
       },
-      "inherits": [ "base" ]
+      "inherits": [
+        "base"
+      ]
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "scheduleRandom": true,
+        "stopOnFailure": false,
+        "timeout": 60
+      }
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "default",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "default"
+        },
+        {
+          "type": "build",
+          "name": "default"
+        },
+        {
+          "type": "test",
+          "name": "default"
+        }
+      ]
     }
   ]
 }

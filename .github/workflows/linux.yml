@@ -80,6 +80,8 @@ jobs:
   windows:
     runs-on: windows-latest
     timeout-minutes: 15
+    env:
+      CMAKE_GENERATOR: "MinGW Makefiles"
 
     steps:
     - uses: actions/checkout@v4
@@ -88,6 +90,9 @@ jobs:
       with:
         update: true
         msystem: UCRT64
+
+    - name: Put MSYS2_MinGW64 on PATH
+      run: echo "D:/a/_temp/msys64/ucrt64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
     - uses: actions/cache@v4
       with:
@@ -116,7 +121,7 @@ jobs:
 
     - name: Build
       # Build your program with the given configuration. Note that --config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
-      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }} -j
+      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} -j
 
     - name: Test
       working-directory: ${{ steps.strings.outputs.build-output-dir }}

@@ -10,7 +10,7 @@ project(
 string(COMPARE EQUAL ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR} PROJECT_IS_TOP_LEVEL)
 
 option(CC_ENABLE_COROUTINE "Enable c++2x coroutines" ON)
-option(CC_ENABLE_IO_URING "Enable io_uring" ON)
+option(CC_ENABLE_IO_URING "Enable io_uring" OFF)
 option(CC_ENABLE_ASAN "Enable asan" ON)
 option(CC_WITH_YYJSON "With yyjson" ON)
 option(CC_WITH_SQLITE3 "With sqlite3" ON)
@@ -148,7 +148,7 @@ if(CC_ENABLE_IO_URING)
 endif()
 
 if(WIN32)
-  target_link_libraries(3rd_dependencies INTERFACE ws2_32)
+  target_link_libraries(3rd_dependencies INTERFACE wsock32 ws2_32)
 endif()
 
 #####################################

@@ -14,6 +14,7 @@
 #include <cc/type_traits.h>
 #include <cc/util.h>
 #include <sqlite3.h>
+#include <stdint.h>
 
 namespace cc {
 

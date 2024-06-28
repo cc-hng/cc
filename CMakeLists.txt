@@ -149,6 +149,9 @@ endif()
 
 if(WIN32)
   target_link_libraries(3rd_dependencies INTERFACE wsock32 ws2_32)
+  if(MINGW)
+    target_compile_options(3rd_dependencies INTERFACE -Wa,-mbig-obj)
+  endif()
 endif()
 
 #####################################

@@ -1,5 +1,5 @@
 set(DEPS_PREFIX
-    "${PROJECT_BINARY_DIR}/_install/deps"
+    "${PROJECT_BINARY_DIR}/_install"
     CACHE PATH "Path prefix for finding dependencies")
 list(INSERT CMAKE_PREFIX_PATH 0 ${DEPS_PREFIX})
 

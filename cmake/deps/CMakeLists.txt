@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
 project(deps LANGUAGES CXX C)
 
 include(ExternalProject)
+include(FetchContent)
 
 if(CMAKE_SYSROOT)
   set(CMAKE_C_FLAGS "--sysroot=${CMAKE_SYSROOT} ${CMAKE_C_FLAGS}")
@@ -32,5 +33,7 @@ if(CC_ENABLE_IO_URING)
     INSTALL_COMMAND make install ENABLE_SHARED=0
     DOWNLOAD_NO_PROGRESS TRUE)
 endif()
+
+include(${CMAKE_CURRENT_LIST_DIR}/FetchBoost.cmake)
 
 add_library(${PROJECT_NAME} INTERFACE)

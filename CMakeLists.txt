@@ -10,7 +10,7 @@ project(
 string(COMPARE EQUAL ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR} PROJECT_IS_TOP_LEVEL)
 
 option(CC_ENABLE_COROUTINE "Enable c++2x coroutines" ON)
-option(CC_ENABLE_IO_URING "Enable io_uring" OFF)
+option(CC_ENABLE_IO_URING "Enable io_uring" ON)
 option(CC_ENABLE_ASAN "Enable asan" ON)
 option(CC_WITH_YYJSON "With yyjson" ON)
 option(CC_WITH_SQLITE3 "With sqlite3" ON)
@@ -24,7 +24,7 @@ option(CC_BUILD_EXAMPLES "Build examples" ${PROJECT_IS_TOP_LEVEL})
 #####################################
 include(cmake/common.cmake)
 
-if(CC_ENABLE_IO_URING)
+if(CC_ENABLE_IO_URING AND LINUX)
   if(CMAKE_CROSSCOMPILING)
     include(CheckIncludeFileCXX)
     check_include_file_cxx("linux/io_uring.h" CC_HAS_IO_URING)
@@ -46,6 +46,8 @@ if(CC_ENABLE_IO_URING)
   endif()
 
   set(CC_ENABLE_IO_URING ${CC_HAS_IO_URING})
+else()
+  set(CC_ENABLE_IO_URING OFF)
 endif()
 
 configure_file(${CMAKE_CURRENT_LIST_DIR}/include/cc/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/_gen/cc/config.h @ONLY)
@@ -72,7 +74,6 @@ find_package(Threads REQUIRED)
 set(MY_LIBS)
 include(FetchContent)
 
-include(cmake/FetchBoost.cmake)
 include(cmake/FetchFmt.cmake)
 include(cmake/FetchGSL.cmake)
 include(cmake/FetchSpdlog.cmake)

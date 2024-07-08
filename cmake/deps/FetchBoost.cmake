@@ -1,12 +1,6 @@
 set(BOOST_ISNTALL_PREFIX
-    "${PROJECT_BINARY_DIR}/_install/boost"
+    "${CMAKE_INSTALL_PREFIX}"
     CACHE PATH "Boost dependencies path")
-list(INSERT CMAKE_PREFIX_PATH 0 ${BOOST_ISNTALL_PREFIX})
-
-if(EXISTS "${BOOST_ISNTALL_PREFIX}")
-  message(STATUS " >>> Boost already installed !!! ")
-  return()
-endif()
 
 message(STATUS "[cc] boost fetching ...")
 set(BOOST_VERSION boost-1.83.0)
@@ -53,6 +47,11 @@ function(boost_add_submodule name commit_id sha256)
                             ${boost_SOURCE_DIR}/libs/${name})
   endif()
 endfunction()
+
+boost_add_submodule(type_index ${BOOST_VERSION} "")
+boost_add_submodule(atomic ${BOOST_VERSION} "")
+boost_add_submodule(filesystem ${BOOST_VERSION} "")
+boost_add_submodule(process ${BOOST_VERSION} "")
 
 boost_add_submodule(headers ${BOOST_VERSION} "")
 boost_add_submodule(core ${BOOST_VERSION} "")

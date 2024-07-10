@@ -122,7 +122,11 @@ public:
                                                      + path.data());
                         }
 
-                        regex.replace(start_pos, end_pos - start_pos, "([^/\\s]+)");
+                        if (end_pos == next_end_pos) {
+                            regex.replace(start_pos, end_pos - start_pos + 1, "(.+)");
+                        } else {
+                            regex.replace(start_pos, end_pos - start_pos, "([^/\\s]+)");
+                        }
                         keys_.emplace_back(key_name);
                     }
                 }

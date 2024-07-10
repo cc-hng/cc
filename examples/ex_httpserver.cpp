@@ -47,6 +47,16 @@ public:
             }
             resp.set_content(R"({"code":200,"data":{}})");
         });
+
+        app_.Get("/api/:service/:method", [](const auto& req, auto& resp) {
+            auto msg = cc::json::dump(*req.params);
+            resp.set_content(msg);
+        });
+
+        app_.Get("/v1/:abc:", [](const auto& req, auto& resp) {
+            resp.set_content(cc::json::dump(*req.params));
+        });
+
         app_.start();
     }
 

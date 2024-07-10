@@ -53,6 +53,7 @@ boost_add_submodule(atomic ${BOOST_VERSION} "")
 boost_add_submodule(filesystem ${BOOST_VERSION} "")
 boost_add_submodule(process ${BOOST_VERSION} "")
 
+boost_add_submodule(url ${BOOST_VERSION} "")
 boost_add_submodule(headers ${BOOST_VERSION} "")
 boost_add_submodule(core ${BOOST_VERSION} "")
 boost_add_submodule(config ${BOOST_VERSION} "")

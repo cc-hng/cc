@@ -16,6 +16,7 @@
         "CPACK_DEBIAN_PACKAGE_MAINTAINER": "cc <cc@l2x.top>",
         "CPACK_DEBIAN_PACKAGE_NAME": "demo",
         "CPACK_DEBIAN_PACKAGE_DEPENDS": "",
+        "FETCHCONTENT_BASE_DIR": "/opt/my/cmake/downloads",
         "CMAKE_BUILD_TYPE": "Release"
       }
     },

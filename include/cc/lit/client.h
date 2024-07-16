@@ -1,29 +1,169 @@
 #pragma once
 
-#include <map>
+#include <deque>
+#include <memory>
+#include <mutex>
+#include <string>
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
+#include <boost/core/noncopyable.hpp>
+#include <boost/url.hpp>
+#include <fmt/core.h>
 
+namespace cc {
 namespace lit {
+
+namespace beast = boost::beast;
+namespace http  = beast::http;
+namespace asio  = boost::asio;
+using tcp       = boost::asio::ip::tcp;
+using namespace std::chrono_literals;
 
 namespace detail {
 
-class FetchConnections {};
+using tcp_stream = typename beast::tcp_stream::rebind_executor<
+    asio::use_awaitable_t<>::executor_with_default<asio::any_io_executor>>::other;
 
+struct Connection {
+    tcp_stream stream;
+    std::string host;
+    std::string port;
+    bool tls;
+    beast::flat_buffer buffer;
+
+    Connection(tcp_stream&& s, std::string h, std::string p, bool t)
+      : stream(std::move(s))
+      , host(std::move(h))
+      , port(std::move(p))
+      , tls(t) {}
+
+    ~Connection() {
+        // Gracefully close the socket
+        beast::error_code ec;
+        std::ignore = stream.socket().shutdown(tcp::socket::shutdown_both, ec);
+    }
+};
+
+class ConnectionPool : boost::noncopyable {
+public:
+    static ConnectionPool& instance() {
+        static ConnectionPool ins;
+        return ins;
+    }
+
+    ~ConnectionPool() = default;
+
+    void release() {
+        std::unique_lock<std::mutex> lock(mtx_);
+        connections_ = {};
+    }
+
+    asio::awaitable<std::shared_ptr<Connection>>
+    get_connection(const std::string& host, const std::string& port, bool tls) {
+        std::unique_lock<std::mutex> lock(mtx_);
+        std::string key = host + ":" + port;
+        auto& queue     = connections_[key];
+
+        if (!queue.empty()) {
+            auto conn = queue.front();
+            queue.pop_front();
+            co_return conn;
+        }
+
+        lock.unlock();
+        auto resolver = asio::use_awaitable.as_default_on(
+            tcp::resolver(co_await asio::this_coro::executor));
+        tcp_stream stream = asio::use_awaitable.as_default_on(
+            beast::tcp_stream(co_await asio::this_coro::executor));
+
+        auto const results = co_await resolver.async_resolve(host, port);
+        co_await stream.async_connect(results);
+
+        if (tls) {
+            // 处理 TLS 连接初始化（如有需要）
+        }
+
+        co_return std::make_shared<Connection>(std::move(stream), host, port, tls);
+    }
+
+    void save_connection(std::shared_ptr<Connection> conn) {
+        std::unique_lock<std::mutex> lock(mtx_);
+        std::string key = conn->host + ":" + conn->port;
+        auto& queue     = connections_[key];
+        queue.push_back(conn);
+    }
+
+private:
+    std::mutex mtx_;
+    std::unordered_map<std::string, std::deque<std::shared_ptr<Connection>>> connections_;
+};
 }  // namespace detail
 
 struct fetch_option_t {
-    using method_type = boost::beast::http::verb;
-    fetch_option_t()  = default;
+    using method_type  = boost::beast::http::verb;
+    using headers_type = std::unordered_map<std::string, std::string>;
+    fetch_option_t()   = default;
 
-    method_type method = method_type::get;
-    bool keepalive     = false;
-    int timeout        = 30;  // seconds
-    std::map<std::string, std::string> headers;
-    std::string body;
+    method_type method   = method_type::get;
+    headers_type headers = {};
+    std::string body     = "";
+    int timeout          = 30;  // seconds
+    bool keepalive       = false;
 };
 
-boost::asio::awaitable<std::string>
-fetch(std::string_view url, const fetch_option_t options = {});
+template <typename Body = beast::http::string_body>
+asio::awaitable<beast::http::response<Body>>
+fetch(std::string_view url, const fetch_option_t options = {}) {
+    detail::ConnectionPool& pool = detail::ConnectionPool::instance();
+    std::shared_ptr<detail::Connection> conn;
+    http::response<Body> res;
+
+    try {
+        boost::urls::url_view u(url);
+        auto scheme      = u.scheme();
+        auto host        = u.host();
+        auto target      = u.path();
+        std::string port = u.port();
+        if (port.empty()) {
+            if (scheme == "http") {
+                port = "80";
+            } else if (scheme == "https") {
+                port = "443";
+            }
+        }
+        if (port.empty()) {
+            throw std::runtime_error("unknown port");
+        }
+
+        conn = co_await pool.get_connection(host, port, scheme == "https" ? true : false);
+
+        http::request<http::string_body> req{options.method, u.path(), 11};
+        req.set(http::field::host, host);
+        req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+        req.keep_alive(options.keepalive);
+
+        conn->stream.expires_after(std::chrono::seconds(options.timeout));
+        std::ignore = co_await http::async_write(conn->stream, req);
+
+        conn->buffer.clear();
+        std::ignore = co_await http::async_read(conn->stream, conn->buffer, res);
+
+        if (options.keepalive) {
+            pool.save_connection(conn);
+        }
+    } catch (...) {
+        if (conn && options.keepalive) {
+            pool.save_connection(conn);
+        }
+        throw;
+    }
+
+    co_return res;
+}
+
+inline void fetch_pool_release() {
+    detail::ConnectionPool::instance().release();
+}
 
 }  // namespace lit
+}  // namespace cc

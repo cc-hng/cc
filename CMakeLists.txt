@@ -119,7 +119,7 @@ set(Boost_USE_STATIC_LIBS ON)
 set(Boost_NO_WARN_NEW_VERSIONS
     ON
     CACHE INTERNAL "")
-find_package(Boost 1.72 REQUIRED)
+find_package(Boost 1.81 REQUIRED  COMPONENTS url)
 
 #####################################
 # target
@@ -133,6 +133,7 @@ target_link_libraries(
             std::coroutines
             Threads::Threads
             Boost::headers
+            Boost::url
             $<$<BOOL:${CC_WITH_YYJSON}>:yyjson>)
 
 if(CC_WITH_SQLITE3)

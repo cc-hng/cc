@@ -1,13 +1,22 @@
-#include <string>
-#include <string_view>
-#include <boost/url.hpp>
+#include <iostream>
+#include <cc/asio/pool.h>
 #include <cc/lit/client.h>
 
-int main() {
-    std::string s =
-        "https://user:pass@example.com:443/path/to/"
-        "my%2dfile.txt?id=42&name=John%20Doe+Jingleheimer%2DSchmidt#page%20anchor";
+namespace net = boost::asio;
 
-    boost::system::result<boost::urls::url_view> r = boost::urls::parse_uri(s);
+int main() {
+    auto& ioc = cc::AsioPool::instance().get_io_context();
+
+    net::co_spawn(
+        ioc,
+        []() -> net::awaitable<void> {
+            auto resp = co_await cc::lit::fetch("http://example.com");
+            std::cout << "响应: " << resp.body() << std::endl;
+        },
+        net::detached);
+
+    ioc.run();
+
+    cc::lit::fetch_pool_release();
     return 0;
 }

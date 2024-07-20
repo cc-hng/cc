@@ -1,19 +1,17 @@
 #pragma once
 
 #include <string>
-#include <boost/hana.hpp>
 
 ///////////////////////////////////////////////////////////////////////
 // common message type
 // clang-format off
-struct cc_empty_msg_t { BOOST_HANA_DEFINE_STRUCT(cc_empty_msg_t); };
+struct cc_empty_msg_t {};
 
 template <typename T>
 struct cc_common_msg_t {
-    BOOST_HANA_DEFINE_STRUCT(cc_common_msg_t,
-        (int, code),
-        (std::string, msg),
-        (T, data));
+    int code;
+    std::string msg;
+    T data;
 };
 
 template <typename T>
@@ -36,26 +34,18 @@ make_reply(int code, std::string_view msg = "") {
 // clang-format on
 
 ///////////////////////////////////////////////////////////////////////
-// clang-format off
-
 struct api_a_req_t {
-    BOOST_HANA_DEFINE_STRUCT(api_a_req_t,
-        (int, a));
+    int a;
 };
 
 struct api_a_rep_t {
-    BOOST_HANA_DEFINE_STRUCT(api_a_rep_t,
-        (int, a));
+    int a;
 };
-
-// clang-format on
 
 struct api_b_request_t {
-    int a;
+    int b;
 };
-BOOST_HANA_ADAPT_STRUCT(api_b_request_t, a);
 
 struct api_b_reply_t {
-    int a;
+    int b;
 };
-BOOST_HANA_ADAPT_STRUCT(api_b_reply_t, a);

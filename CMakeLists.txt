@@ -119,7 +119,7 @@ set(Boost_USE_STATIC_LIBS ON)
 set(Boost_NO_WARN_NEW_VERSIONS
     ON
     CACHE INTERNAL "")
-find_package(Boost 1.81 REQUIRED  COMPONENTS url)
+find_package(Boost 1.81 REQUIRED COMPONENTS url)
 
 #####################################
 # target

@@ -13,12 +13,49 @@
 #include <boost/hana.hpp>
 #include <cc/type_traits.h>
 #include <cc/util.h>
+#include <fmt/format.h>
 #include <sqlite3.h>
 #include <stdint.h>
 
 namespace cc {
 
 namespace hana = boost::hana;
+
+namespace detail {
+
+template <typename T>
+constexpr bool is_array_v =
+    cc::is_vector_v<T> || cc::is_list_v<T> || cc::is_set_v<T> || cc::is_unordered_set_v<T>;
+
+template <typename T>
+constexpr bool is_object_v = cc::is_map_v<T> || cc::is_unordered_map_v<T>;
+
+template <typename T>
+struct sqlite3_type {
+    static std::string get() {
+        if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>
+                      || std::is_same_v<T, const char*>) {
+            return "TEXT";
+        } else if constexpr (std::is_same_v<T, double> || std::is_same_v<T, float>) {
+            return "REAL";
+        } else if constexpr (std::is_integral_v<T>) {
+            return "INTEGER";
+        } else if constexpr (std::is_same_v<T, std::vector<char>>) {
+            return "BLOB";
+        } else if constexpr (is_array_v<T> || is_object_v<T> || hana::Struct<T>::value) {
+            return "JSON";
+        } else {
+            return "TEXT";
+        }
+    }
+};
+
+template <typename T>
+struct sqlite3_type<std::optional<T>> {
+    static std::string get() { return sqlite3_type<T>::get(); }
+};
+
+}  // namespace detail
 
 template <typename MutexPolicy = cc::NonMutex, template <typename> class ReadLock = cc::LockGuard,
           template <typename> class WriteLock = cc::LockGuard>
@@ -84,6 +121,81 @@ public:
     execute(std::string_view stmt, Args&&... args) {
         WriteLock<MutexPolicy> _lck(mtx_);
         execute_impl<void>(stmt, std::forward<Args>(args)...);
+    }
+
+    // fake orm
+    template <typename T, typename = hana::when<hana::Struct<T>::value>>
+    void create_table(std::string_view tbl_name,
+                      std::vector<std::vector<std::string>> indexes = {}) {
+        std::vector<std::string> stmts;
+        std::string stmt;
+        std::string seq;
+        std::vector<std::string> parts;
+        bool create_at = false;
+        bool update_at = false;
+
+        parts.emplace_back();
+
+        stmt = fmt::format("CREATE TABLE IF NOT EXISTS {} (", tbl_name);
+        stmt += seq;
+        stmt += "\n  id INTEGER PRIMARY KEY AUTOINCREMENT";
+        seq = ",";
+
+        hana::for_each(T{}, [&](const auto& pair) {
+            auto key           = hana::to<char const*>(hana::first(pair));
+            const auto& member = hana::second(pair);
+            using Member = std::remove_const_t<std::remove_reference_t<decltype(member)>>;
+
+            std::string type     = detail::sqlite3_type<Member>::get();
+            std::string not_null = cc::is_optional_v<Member> ? "" : " NOT NULL";
+
+            stmt += seq;
+            stmt += fmt::format("\n  {} {}{}", key, type, not_null);
+
+            if (std::string_view(key) == "created_at") {
+                create_at = true;
+            }
+            if (std::string_view(key) == "updated_at") {
+                update_at = true;
+            }
+        });
+
+        if (!create_at) {
+            stmt += seq;
+            stmt += "\n  created_at TIMESTAMP DEFAULT (unixepoch('now'))";
+        }
+
+        if (!update_at) {
+            stmt += seq;
+            stmt += "\n  updated_at TIMESTAMP DEFAULT (unixepoch('now'))";
+        }
+
+        stmt += "\n);";
+        stmts.emplace_back((std::string&&)stmt);
+
+        // auto update
+        stmt = fmt::format(R"(CREATE TRIGGER IF NOT EXISTS {}_updated_at_trigger AFTER UPDATE ON {}
+BEGIN
+  UPDATE user SET updated_at = unixepoch('now') WHERE id == NEW.id;
+END;)",
+                           tbl_name, tbl_name);
+        stmts.emplace_back((std::string&&)stmt);
+
+        // index
+        for (const auto& idx : indexes) {
+            stmt = fmt::format("CREATE INDEX IF NOT EXISTS {}_{}_idx ON {}({});", tbl_name,
+                               fmt::join(idx, "_"), tbl_name, fmt::join(idx, ","));
+            stmts.emplace_back((std::string&&)stmt);
+        }
+
+        for (auto& s : stmts) {
+            execute(s);
+        }
+    }
+
+    template <typename T, typename = hana::when<hana::Struct<T>::value>>
+    void create_table(std::string_view tbl, std::string_view column) {
+        create_table<T>(tbl, {{std::string(column)}});
     }
 
 private:

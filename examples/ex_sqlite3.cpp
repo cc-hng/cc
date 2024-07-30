@@ -26,13 +26,15 @@ int main() {
 
     sqlconn.open(":memory:");
 
-    sqlconn.execute(R"(
-        CREATE TABLE IF NOT EXISTS user (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            age INTEGER
-        );
-    )");
+    // sqlconn.execute(R"(
+    //     CREATE TABLE IF NOT EXISTS user (
+    //         id INTEGER PRIMARY KEY AUTOINCREMENT,
+    //         name TEXT NOT NULL,
+    //         age INTEGER
+    //     );
+    // )");
+
+    sqlconn.create_table<user_t>("user");
 
     sqlconn.execute(R"(INSERT INTO user (name, age) VALUES ('Alice', 30))");
     sqlconn.execute(R"(INSERT INTO user (name, age) VALUES ('Bob', 25))");

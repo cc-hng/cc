@@ -1,8 +1,13 @@
 #pragma once
 
+#include <list>
+#include <map>
 #include <optional>
+#include <set>
 #include <tuple>
 #include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace boost {
@@ -14,6 +19,7 @@ class awaitable;
 
 namespace cc {
 
+/// stl container
 template <typename T>
 struct is_vector : public std::false_type {};
 
@@ -22,6 +28,51 @@ struct is_vector<std::vector<T>> : public std::true_type {};
 
 template <typename T>
 constexpr bool is_vector_v = is_vector<T>::value;
+
+template <typename T>
+struct is_list : public std::false_type {};
+
+template <typename T>
+struct is_list<std::list<T>> : public std::true_type {};
+
+template <typename T>
+constexpr bool is_list_v = is_list<T>::value;
+
+template <typename T>
+struct is_set : public std::false_type {};
+
+template <typename T>
+struct is_set<std::set<T>> : public std::true_type {};
+
+template <typename T>
+constexpr bool is_set_v = is_set<T>::value;
+
+template <typename T>
+struct is_unordered_set : public std::false_type {};
+
+template <typename T, typename A>
+struct is_unordered_set<std::unordered_set<T, A>> : public std::true_type {};
+
+template <typename T>
+constexpr bool is_unordered_set_v = is_unordered_set<T>::value;
+
+template <typename T>
+struct is_map : public std::false_type {};
+
+template <typename T, typename A>
+struct is_map<std::map<T, A>> : public std::true_type {};
+
+template <typename T>
+constexpr bool is_map_v = is_map<T>::value;
+
+template <typename T>
+struct is_unordered_map : public std::false_type {};
+
+template <typename T, typename A>
+struct is_unordered_map<std::unordered_map<T, A>> : public std::true_type {};
+
+template <typename T>
+constexpr bool is_unordered_map_v = is_unordered_map<T>::value;
 
 template <typename T>
 struct is_tuple : public std::false_type {};

@@ -170,8 +170,7 @@ public:
                     co_return false;
                 }
 
-                auto _req   = const_cast<http_request_t&>(req);
-                _req.params = params;
+                req.params = params;
 
                 ws_stream ws(stream->release_socket());
                 stream = nullptr;

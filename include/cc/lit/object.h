@@ -16,8 +16,7 @@ namespace lit {
 namespace detail {
 //
 /// @urlencode / urldecode
-[[maybe_unused]]
-static std::string urlencode(std::string_view raw) {
+[[maybe_unused]] static std::string urlencode(std::string_view raw) {
     std::ostringstream oss;
     oss.fill('0');
     oss << std::hex;
@@ -31,8 +30,7 @@ static std::string urlencode(std::string_view raw) {
     return oss.str();
 }
 
-[[maybe_unused]]
-static std::string urldecode(std::string_view raw) {
+[[maybe_unused]] static std::string urldecode(std::string_view raw) {
     std::string result;
     result.reserve(raw.size());
 
@@ -70,8 +68,8 @@ struct http_request_t {
 
     raw_type request;
     std::string_view path;
-    kv_t querys;
-    kv_t params;
+    mutable kv_t querys;
+    mutable kv_t params;
 
     raw_type* operator->() { return &request; }
     const raw_type* operator->() const { return &request; }
@@ -105,7 +103,7 @@ struct http_request_t {
                 }
                 std::string key(s, j);
                 std::string val(s + j + 1, len - j - 1);
-                out.emplace((std::string&&)key, (std::string&&)val);
+                out.emplace((std::string &&) key, (std::string &&) val);
 
                 s += len + 1;
                 left -= len + 1;

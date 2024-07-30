@@ -1,9 +1,8 @@
-
 #!/usr/bin/awk -f
 
 function trim(s) {
-  sub(/^[[:space:]]+/, "", s)  # 去除开头的空白字符
-  sub(/[[:space:]]+$/, "", s)  # 去除结尾的空白字符
+  sub(/^[ \t]+/, "", s)  # 去除开头的空白字符
+  sub(/[ \t]+$/, "", s)  # 去除结尾的空白字符
   return s
 }
 
@@ -13,13 +12,13 @@ BEGIN {
 }
 
 {
-  if ($0 ~ /#[[:space:]]*include/) {
+  if ($0 ~ /#[ \t]*include/) {
     in_headers = 1
     print $0
     next
   }
 
-  if (in_headers  && $0 !~ /#[[:space:]]include/) {
+  if (in_headers && $0 !~ /#[ \t]*include/) {
     in_headers = 0
     print "#include <boost/hana.hpp>"
     print $0
@@ -36,20 +35,20 @@ BEGIN {
   if (in_struct) {
     struct_content = struct_content $0 " "
 
-    if ($0 ~ /}[[:space:]]*;/) {
+    if ($0 ~ /}[ \t]*;/) {
       in_struct = 0
-      if (match(struct_content, /\{[^{}]*/)) {
+      if (match(struct_content, /{[^{}]*/)) {
         tmp = substr(struct_content, RSTART+1, RLENGTH-1)
       }
 
-      split(tmp, arr, ";")
+      n = split(tmp, arr, ";")
       sep = ""
       print "struct " struct_name " {"
-      if (length(arr) > 0) {
+      if (n > 0) {
         print "  BOOST_HANA_DEFINE_STRUCT(" struct_name ","
-        for (i=1; i<length(arr); i++) {
-          split(trim(arr[i]), arr0, "[[:space:]]+")
-          sep = i == length(arr) - 1 ? ");" : ","
+        for (i=1; i<n; i++) {
+          split(trim(arr[i]), arr0)
+          sep = i == n - 1 ? ");" : ","
           print "    (" arr0[1] ", " arr0[2] ")" sep
         }
       } else {
@@ -60,5 +59,4 @@ BEGIN {
   } else {
     print $0
   }
-
 }

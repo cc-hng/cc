@@ -23,7 +23,7 @@ public:
     ~Router() {}
 
     inline auto& use(http_handle_t&& h) {
-        handlers_.emplace_back((http_handle_t&&)h);
+        handlers_.emplace_back((http_handle_t &&) h);
         return *this;
     }
 
@@ -33,7 +33,7 @@ public:
             Functor(http::verb method, std::string_view path, http_handle_t&& handler)
               : method_(method)
               , parse_path_(compile_route(path))
-              , handler_((http_handle_t&&)handler) {}
+              , handler_((http_handle_t &&) handler) {}
 
             boost::asio::awaitable<void>
             operator()(const request_type& req, response_type& resp,
@@ -47,7 +47,7 @@ public:
                     co_return co_await go();
                 }
 
-                const_cast<request_type&>(req).params = params;
+                req.params = params;
                 co_await handler_(req, resp, go);
             }
 
@@ -57,7 +57,7 @@ public:
             http_handle_t handler_;
         };
 
-        use(Functor(method, path, (http_handle_t&&)handler));
+        use(Functor(method, path, (http_handle_t &&) handler));
         return *this;
     }
 

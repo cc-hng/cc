@@ -1,7 +1,7 @@
 #include <iostream>
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
-#include <cc/asio/core.h>
+#include <cc/asio.hpp>
 
 namespace asio = boost::asio;
 

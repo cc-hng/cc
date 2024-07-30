@@ -1,6 +1,6 @@
 #include <mutex>
 #include <random>
-#include <cc/asio/core.h>
+#include <cc/asio.hpp>
 #include <fmt/core.h>
 
 /// @return [0, m)

@@ -1,9 +1,9 @@
 
 #include <boost/callable_traits.hpp>
 #include <boost/hana.hpp>
-#include <cc/asio/core.h>
+#include <cc/asio.hpp>
 #include <cc/json.h>
-#include <cc/lit/core.h>
+#include <cc/lit.hpp>
 #include <cc/lit/multipart_parser.h>
 #include <cc/lit/util.h>
 #include <cc/type_traits.h>

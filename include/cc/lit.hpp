@@ -10,3 +10,4 @@
 #include <cc/lit/middleware.h>
 #include <cc/lit/router.h>
 #include <cc/lit/server.h>
+#include <cc/lit/util.h>

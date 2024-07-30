@@ -1,8 +1,8 @@
 
-#include <cc/asio/core.h>
+#include <cc/asio.hpp>
 #include <spdlog/spdlog.h>
 
-#define N 10
+#define N 3
 
 asio::task<void> producer(cc::chan::Sender<int> sender) {
     for (int i = 0; i < N; i++) {
@@ -10,17 +10,22 @@ asio::task<void> producer(cc::chan::Sender<int> sender) {
         SPDLOG_INFO("[producer] send {}", i + 1);
         (*sender)(i + 1);
     }
+
+    sender.reset();
 }
 
 asio::task<void> consumer(cc::chan::Receiver<int> receiver) {
     for (;;) {
         // 模拟长时间任务
-        co_await cc::async_sleep(1500);
-        std::deque<int> list = co_await (*receiver)();
-        for (const auto& v : list) {
-            SPDLOG_INFO("[consumer] recv {}", v);
+        // co_await cc::async_sleep(1500);
+        auto item = co_await (*receiver)();
+        if (!item.has_value()) {
+            break;
         }
+        SPDLOG_INFO("[consumer] recv {}", *item);
     }
+
+    SPDLOG_INFO("[consumer] over !!!");
 }
 
 int main() {
@@ -33,6 +38,8 @@ int main() {
 
     asio::co_spawn(ctx, producer(sender), asio::detached);
     asio::co_spawn(ctx, consumer(std::move(receiver)), asio::detached);
+
+    sender.reset();
 
     ap.run();
     SPDLOG_INFO("---  end  ---");

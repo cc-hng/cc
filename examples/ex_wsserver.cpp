@@ -1,5 +1,5 @@
-#include <cc/asio/core.h>
-#include <cc/lit/core.h>
+#include <cc/asio.hpp>
+#include <cc/lit.hpp>
 #include <fmt/core.h>
 
 namespace beast = boost::beast;

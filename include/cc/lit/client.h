@@ -124,7 +124,6 @@ fetch(std::string_view url, const fetch_option_t options = {}) {
         auto host        = u.host();
         auto target      = u.path();
         std::string port = u.port();
-        target           = target.empty() ? "/" : target;
         if (port.empty()) {
             if (scheme == "http") {
                 port = "80";
@@ -136,9 +135,15 @@ fetch(std::string_view url, const fetch_option_t options = {}) {
             throw std::runtime_error("unknown port");
         }
 
+        std::string requri = target.empty() ? "/" : target;
+        if (u.has_query()) {
+            requri += "?";
+            requri += u.query();
+        }
+
         conn = co_await pool.get_connection(host, port, scheme == "https" ? true : false);
 
-        http::request<http::string_body> req{options.method, target, 11};
+        http::request<http::string_body> req{options.method, requri, 11};
         req.set(http::field::host, host);
         req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
         req.keep_alive(options.keepalive);

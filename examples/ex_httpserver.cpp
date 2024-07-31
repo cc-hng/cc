@@ -37,6 +37,12 @@ public:
         app_.Post("/api/e", cc::lit::make_route(&HttpServer::api_e, this));
         app_.Post("/api/f", cc::lit::make_route(&HttpServer::api_f, this));
 
+        app_.Get("/api/param", [](const auto& req, auto& resp) {
+            if (req.querys) {
+                resp.set_content(cc::json::dump(*req.querys));
+            }
+        });
+
         app_.Post("/api/upload", [](const cc::lit::http_request_t& req, auto& resp) {
             auto result = cc::lit::multipart_formdata_parse(req);
             for (const auto& f : result) {

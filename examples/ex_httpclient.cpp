@@ -17,6 +17,10 @@ int main() {
         std::cout << resp.body() << std::endl;
 
         std::cout << "------------------- 分割线 -------------------" << std::endl;
+        resp = co_await cc::lit::fetch("http://127.0.0.1:8088/api/param?a=1&b=2", opt);
+        std::cout << resp.body() << std::endl;
+
+        std::cout << "------------------- 分割线 -------------------" << std::endl;
         opt.method = boost::beast::http::verb::post;
         resp       = co_await cc::lit::fetch("http://127.0.0.1:8088/api/c", opt);
         std::cout << resp.body() << std::endl;

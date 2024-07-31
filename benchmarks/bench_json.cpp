@@ -1,5 +1,3 @@
-#include <cc/config.h>
-
 #ifdef CC_WITH_YYJSON
 
 #    include "cc/json.h"

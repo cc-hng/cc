@@ -4,6 +4,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 #include <boost/core/noncopyable.hpp>
@@ -102,7 +103,6 @@ private:
 struct fetch_option_t {
     using method_type  = boost::beast::http::verb;
     using headers_type = std::unordered_map<std::string, std::string>;
-    fetch_option_t()   = default;
 
     method_type method   = method_type::get;
     headers_type headers = {};
@@ -124,6 +124,7 @@ fetch(std::string_view url, const fetch_option_t options = {}) {
         auto host        = u.host();
         auto target      = u.path();
         std::string port = u.port();
+        target           = target.empty() ? "/" : target;
         if (port.empty()) {
             if (scheme == "http") {
                 port = "80";
@@ -137,7 +138,7 @@ fetch(std::string_view url, const fetch_option_t options = {}) {
 
         conn = co_await pool.get_connection(host, port, scheme == "https" ? true : false);
 
-        http::request<http::string_body> req{options.method, u.path(), 11};
+        http::request<http::string_body> req{options.method, target, 11};
         req.set(http::field::host, host);
         req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
         req.keep_alive(options.keepalive);

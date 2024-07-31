@@ -11,6 +11,10 @@
 #include <cc/type_traits.h>
 #include <cc/util.h>
 
+#ifdef CC_ENABLE_COROUTINE
+#    include <cc/asio.hpp>
+#endif
+
 namespace cc {
 
 namespace ct = boost::callable_traits;
@@ -100,6 +104,21 @@ public:
             }
         }
     }
+
+#ifdef CC_ENABLE_COROUTINE
+
+    template <typename... Ts>
+    std::tuple<handler_t, cc::chan::Receiver<std::tuple<Ts...>>>
+    stream(std::string_view topic) {
+        using R                 = std::tuple<Ts...>;
+        auto [sender, receiver] = cc::chan::make_mpsc<R>();
+        auto id                 = sub(topic, [sender0 = sender](Ts... args) {
+            (*sender0)(std::make_tuple(args...));
+        });
+        return std::make_tuple(id, std::move(receiver));
+    }
+
+#endif
 
 private:
     template <typename Signature>

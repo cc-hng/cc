@@ -79,9 +79,9 @@ struct http_request_t {
         this->path         = path;
         if (!query.empty()) {
             typename kv_t::element_type out;
-            query         = detail::urldecode(query);
-            const char* s = &*query.begin();
-            int left      = query.size();
+            auto query0   = detail::urldecode(query);
+            const char* s = query0.data();
+            int left      = query0.size();
             int len;
 
             while (left > 0) {
@@ -103,7 +103,7 @@ struct http_request_t {
                 }
                 std::string key(s, j);
                 std::string val(s + j + 1, len - j - 1);
-                out.emplace((std::string &&) key, (std::string &&) val);
+                out.emplace((std::string&&)key, (std::string&&)val);
 
                 s += len + 1;
                 left -= len + 1;

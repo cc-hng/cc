@@ -1,5 +1,3 @@
-#include <cc/config.h>
-
 #ifdef CC_WITH_SQLITE3
 
 #    include "common.h"

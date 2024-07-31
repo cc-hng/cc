@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cc/config.h>
-
 #ifndef CC_WITH_SQLITE3
 #    error "Recompile with CC_WITH_SQLITE3"
 #endif

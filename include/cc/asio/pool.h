@@ -10,6 +10,7 @@
 #include <boost/asio.hpp>
 #include <boost/core/noncopyable.hpp>
 #include <stddef.h>
+#include <stdio.h>
 
 namespace cc {
 
@@ -139,6 +140,26 @@ public:
             }
         }
     }
+
+#ifdef CC_ENABLE_COROUTINE
+    template <typename Any, typename CompletionToken>
+    auto co_spawn(Any&& a, CompletionToken&& token) {
+        return boost::asio::co_spawn(ctx_, std::forward<Any>(a),
+                                     std::forward<CompletionToken>(token));
+    }
+
+    template <typename Any>
+    auto co_spawn(Any&& a) {
+        return boost::asio::co_spawn(ctx_, std::forward<Any>(a), [](std::exception_ptr e) {
+            if (!e) return;
+            try {
+                std::rethrow_exception(e);
+            } catch (std::exception& e) {
+                fprintf(stderr, "Error in co_spawn: %s\n", e.what());
+            }
+        });
+    }
+#endif
 
 private:
     boost::asio::io_context ctx_;

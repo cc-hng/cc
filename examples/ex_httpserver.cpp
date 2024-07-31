@@ -30,7 +30,7 @@ public:
             resp.set_content("<p1>hello,world2</p1>", "text/html");
         });
 
-        app_.Get("/api/c", [](const auto& req, auto& resp) -> boost::asio::awaitable<void> {
+        app_.Post("/api/c", [](const auto& req, auto& resp) -> boost::asio::awaitable<void> {
             co_return resp.set_content("<p1>hello,world3</p1>", "text/html");
         });
 

@@ -1,22 +1,27 @@
 #include <iostream>
-#include <cc/asio/pool.h>
+#include <cc/asio.hpp>
 #include <cc/lit/client.h>
-
-namespace net = boost::asio;
+#include <gsl/gsl>
 
 int main() {
-    auto& ioc = cc::AsioPool::instance().get_io_context();
+    auto defer = gsl::finally([] { cc::lit::fetch_pool_release(); });
+    auto& ap   = cc::AsioPool::instance();
 
-    net::co_spawn(
-        ioc,
-        []() -> net::awaitable<void> {
-            auto resp = co_await cc::lit::fetch("http://example.com");
-            std::cout << "响应: " << resp.body() << std::endl;
-        },
-        net::detached);
+    ap.co_spawn([]() -> asio::awaitable<void> {
+        cc::lit::fetch_option_t opt = {.keepalive = true};
+        auto resp = co_await cc::lit::fetch("http://127.0.0.1:8088", opt);
+        std::cout << resp.body() << std::endl;
 
-    ioc.run();
+        std::cout << "------------------- 分割线 -------------------" << std::endl;
+        resp = co_await cc::lit::fetch("http://127.0.0.1:8088/api/a", opt);
+        std::cout << resp.body() << std::endl;
 
-    cc::lit::fetch_pool_release();
+        std::cout << "------------------- 分割线 -------------------" << std::endl;
+        opt.method = boost::beast::http::verb::post;
+        resp       = co_await cc::lit::fetch("http://127.0.0.1:8088/api/c", opt);
+        std::cout << resp.body() << std::endl;
+    });
+
+    ap.run(1);
     return 0;
 }

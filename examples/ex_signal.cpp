@@ -41,12 +41,28 @@ void on_pos(Point3D pos) {
     fmt::print("[unknown] pos: {}\n", pos);
 }
 
+asio::awaitable<void> async_background_task() {
+    auto [_, stream] = kSig.stream<int, int>("vel");
+    for (;;) {
+        auto item = co_await (*stream)();
+        if (!item.has_value()) {
+            break;
+        }
+
+        auto [x, y] = *item;
+        fmt::print("[background] speed x: {}, y: {}\n", x, y);
+    }
+}
+
 int main() {
     auto& signal = kSig;
     signal.sub("vel", on_vel);
     signal.sub("game_over", on_game_over1);
     signal.sub("game_over", on_game_over2);
     signal.sub("pos", on_pos);
+
+    auto& ctx = cc::AsioPool::instance().get_io_context();
+    // asio::co_spawn(ctx, async_background_task(), asio::detached);
 
     // player by shared_ptr
     {
@@ -71,5 +87,8 @@ int main() {
     Point3D pt = {3, 4, 5};
     signal.pub("pos", pt);
     signal.pub("game_over");
+
+    cc::AsioPool::instance().set_timeout(1000, [] { signal.pub("vel", 12, 12); });
+    cc::AsioPool::instance().run(1);
     return 0;
 }

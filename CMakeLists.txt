@@ -50,8 +50,6 @@ else()
   set(CC_ENABLE_IO_URING OFF)
 endif()
 
-configure_file(${CMAKE_CURRENT_LIST_DIR}/include/cc/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/_gen/cc/config.h @ONLY)
-
 #####################################
 # third-party packages
 #####################################
@@ -135,6 +133,9 @@ target_link_libraries(
             Boost::headers
             Boost::url
             $<$<BOOL:${CC_WITH_YYJSON}>:yyjson>)
+target_compile_definitions(
+  3rd_dependencies INTERFACE $<$<BOOL:${CC_WITH_SQLITE3}>:CC_WITH_SQLITE3> $<$<BOOL:${CC_WITH_YYJSON}>:CC_WITH_YYJSON>
+                             $<$<BOOL:${CC_ENABLE_COROUTINE}>:CC_ENABLE_COROUTINE>)
 
 if(CC_WITH_SQLITE3)
   target_link_libraries(3rd_dependencies INTERFACE sqlite3)
@@ -161,10 +162,8 @@ endif()
 #####################################
 add_library(${PROJECT_NAME} INTERFACE)
 target_link_libraries(${PROJECT_NAME} INTERFACE 3rd_dependencies)
-target_include_directories(
-  ${PROJECT_NAME}
-  INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/_gen>
-            $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>)
+target_include_directories(${PROJECT_NAME} INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                                                     $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>)
 
 #####################################
 # test

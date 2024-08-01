@@ -11,10 +11,10 @@
 #include <string_view>
 #include <tuple>
 #include <unordered_map>
-#include <variant>
 #include <vector>
 #include <boost/hana.hpp>
 #include <cc/util.h>
+#include <cc/value.h>
 #include <gsl/gsl>
 #include <yyjson.h>
 
@@ -22,11 +22,6 @@ namespace cc {
 namespace json {
 
 namespace hana = boost::hana;
-
-struct unknown_t {};
-struct null_t {};
-static constexpr const null_t null;
-using value_t = std::variant<unknown_t, null_t, bool, int, double, std::string>;
 
 namespace detail {
 
@@ -261,37 +256,64 @@ struct yyjson_convert<std::optional<T>> {
 
 // json value
 template <>
-struct yyjson_convert<value_t> {
-    static yyjson_mut_val* to_json(yyjson_mut_doc* doc, const value_t& rhs) {
+struct yyjson_convert<cc::Value> {
+    static yyjson_mut_val* to_json(yyjson_mut_doc* doc, const cc::Value& rhs) {
         yyjson_mut_val* val = nullptr;
-        std::visit(
-            [&](auto&& v) {
-                using T = std::decay_t<decltype(v)>;
-                if constexpr (std::is_same_v<T, null_t>) {
-                    val = yyjson_mut_null(doc);
-                } else if constexpr (!std::is_same_v<T, unknown_t>) {
-                    val = yyjson_convert<T>::to_json(doc, v);
-                } else {
-                    ASSERT(false, "Unknwon json type");
-                }
-            },
-            rhs);
+        rhs.visit([&](const auto& v) {
+            using T = std::decay_t<decltype(v)>;
+            if constexpr (std::is_same_v<T, std::nullptr_t>) {
+                val = yyjson_mut_null(doc);
+            } else if constexpr (std::is_same_v<T, cc::Value::array_t>) {
+                val =
+                    yyjson_convert<typename cc::Value::array_t::element_type>::to_json(doc,
+                                                                                       *v);
+            } else if constexpr (std::is_same_v<T, cc::Value::object_t>) {
+                val = yyjson_convert<typename cc::Value::object_t::element_type>::to_json(
+                    doc, *v);
+
+            } else {
+                val = yyjson_convert<T>::to_json(doc, v);
+            }
+        });
         return val;
     }
 
-    static void from_json(yyjson_val* js, value_t& rhs) {
+    static void from_json(yyjson_val* js, cc::Value& rhs) {
         if (yyjson_is_bool(js)) {
-            rhs = yyjson_get_bool(js);
+            rhs = Value(yyjson_get_bool(js));
         } else if (yyjson_is_int(js)) {
-            rhs = yyjson_get_int(js);
+            rhs = Value(yyjson_get_int(js));
         } else if (yyjson_is_real(js)) {
-            rhs = yyjson_get_real(js);
+            rhs = Value(yyjson_get_real(js));
         } else if (yyjson_is_str(js)) {
-            rhs = std::string(yyjson_get_str(js), yyjson_get_len(js));
+            rhs = Value(std::string(yyjson_get_str(js), yyjson_get_len(js)));
         } else if (yyjson_is_null(js)) {
-            rhs = null;
+            rhs = Value();
+        } else if (yyjson_is_arr(js)) {
+            auto arr = std::make_shared<Value::array_t::element_type>();
+            arr->reserve(yyjson_arr_size(js));
+            yyjson_val* elem;
+            size_t idx, max;
+            yyjson_arr_foreach(js, idx, max, elem) {
+                Value val;
+                yyjson_convert<Value>::from_json(elem, val);
+                arr->emplace_back(std::move(val));
+            }
+            rhs = Value(arr);
+        } else if (yyjson_is_obj(js)) {
+            auto obj = std::make_shared<Value::object_t::element_type>();
+            yyjson_val* key;
+            yyjson_val* val;
+            size_t idx, max;
+            yyjson_obj_foreach(js, idx, max, key, val) {
+                std::string str_key = yyjson_get_str(key);
+                Value value;
+                yyjson_convert<Value>::from_json(val, value);
+                obj->emplace(std::move(str_key), std::move(value));
+            }
+            rhs = Value(obj);
         } else {
-            ASSERT(false, "Unknown json type" + std::to_string(yyjson_get_type(js)));
+            ASSERT(false, "Unknown json type !!!");
         }
     }
 };

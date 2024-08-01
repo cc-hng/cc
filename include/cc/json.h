@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <unordered_map>
 #include <variant>
 #include <vector>
@@ -97,6 +98,35 @@ struct yyjson_convert<std::string_view> {
     static void from_json(yyjson_val* js, std::string_view& rhs) {
         ASSERT(yyjson_is_str(js), "std::string_view expect a json string");
         rhs = std::string_view(yyjson_get_str(js), yyjson_get_len(js));
+    }
+};
+
+// std::tuple
+template <typename... Args>
+struct yyjson_convert<std::tuple<Args...>> {
+    static yyjson_mut_val* to_json(yyjson_mut_doc* doc, const std::tuple<Args...>& rhs) {
+        auto arr = yyjson_mut_arr(doc);
+        std::apply(
+            [&](const auto&... xs) {
+                ((yyjson_mut_arr_append(
+                     arr, yyjson_convert<std::decay_t<decltype(xs)>>::to_json(doc, xs))),
+                 ...);
+            },
+            rhs);
+        return arr;
+    }
+
+    static void from_json(yyjson_val* js, std::tuple<Args...>& rhs) {
+        ASSERT(yyjson_is_arr(js), "std::tuple<Args...> expect a json array");
+        ASSERT(yyjson_arr_size(js) == sizeof...(Args), "std::tuple<Args...> count error");
+        std::apply(
+            [&](auto&... as) {
+                int i = 0;
+                ((yyjson_convert<std::decay_t<decltype(as)>>::from_json(
+                     yyjson_arr_get(js, i++), as)),
+                 ...);
+            },
+            rhs);
     }
 };
 

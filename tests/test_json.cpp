@@ -78,8 +78,21 @@ TEST(yyjson, yyjson_val) {
     EXPECT_EQ(m.count("year"), 1);
     EXPECT_EQ(m.count("tire_pressure"), 1);
     EXPECT_EQ(m.count("owner"), 0);
+}
 
-    EXPECT_TRUE(true);
+TEST(yyjson, tuple) {
+    std::string json = R"([1,3.5,"hello"])";
+    using tuple_t    = std::tuple<int, float, std::string>;
+    auto t           = cc::json::parse<tuple_t>(json);
+    int x;
+    float y;
+    std::string z;
+    std::tie(x, y, z) = t;
+    EXPECT_EQ(x, 1);
+    EXPECT_EQ(y, 3.5);
+    EXPECT_EQ(z, "hello");
+
+    EXPECT_EQ(cc::json::dump(t), json);
 }
 
 #endif

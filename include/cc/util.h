@@ -10,7 +10,7 @@
 
 #define ASSERT(cond, msg)                  \
     do {                                   \
-        if (!cond) {                       \
+        if (!(cond)) {                     \
             throw std::runtime_error(msg); \
         }                                  \
     } while (0)

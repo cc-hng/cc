@@ -143,4 +143,23 @@ struct remove_member_pointer<R (Cls::*)(Args...)> {
 template <typename T>
 using remove_member_pointer_t = typename remove_member_pointer<T>::type;
 
+// result_of
+template <typename>
+struct result_of;
+
+#if __cplusplus >= 201703L
+template <typename F, typename... Args>
+struct result_of<F(Args...)> {
+    using type = std::invoke_result_t<F, Args...>;
+};
+#else
+template <typename F, typename... Args>
+struct result_of<F(Args...)> {
+    using type = std::result_of_t<F(Args...)>;
+};
+#endif
+
+template <typename T>
+using result_of_t = typename result_of<T>::type;
+
 }  // namespace cc

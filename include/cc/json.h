@@ -117,8 +117,7 @@ struct yyjson_convert<std::tuple<Args...>> {
         std::apply(
             [&](auto&... as) {
                 int i = 0;
-                ((yyjson_convert<std::decay_t<decltype(as)>>::from_json(
-                     yyjson_arr_get(js, i++), as)),
+                ((yyjson_convert<std::decay_t<decltype(as)>>::from_json(yyjson_arr_get(js, i++), as)),
                  ...);
             },
             rhs);
@@ -177,11 +176,10 @@ struct yyjson_convert<std::list<T, A>> {
 // std::map
 template <typename V, typename C, typename A>
 struct yyjson_convert<std::map<std::string, V, C, A>> {
-    static yyjson_mut_val*
-    to_json(yyjson_mut_doc* doc, const std::map<std::string, V, C, A>& rhs) {
+    static yyjson_mut_val* to_json(yyjson_mut_doc* doc, const std::map<std::string, V, C, A>& rhs) {
         auto obj = yyjson_mut_obj(doc);
         for (const auto& kv : rhs) {
-            auto key = yyjson_mut_strncpy(doc, kv.first.c_str(), kv.first.size());
+            auto key            = yyjson_mut_strncpy(doc, kv.first.c_str(), kv.first.size());
             yyjson_mut_val* val = yyjson_convert<V>::to_json(doc, kv.second);
             yyjson_mut_obj_add(obj, key, val);
         }
@@ -209,7 +207,7 @@ struct yyjson_convert<std::unordered_map<std::string, V, C, A>> {
     to_json(yyjson_mut_doc* doc, const std::unordered_map<std::string, V, C, A>& rhs) {
         auto obj = yyjson_mut_obj(doc);
         for (const auto& kv : rhs) {
-            auto key = yyjson_mut_strncpy(doc, kv.first.c_str(), kv.first.size());
+            auto key            = yyjson_mut_strncpy(doc, kv.first.c_str(), kv.first.size());
             yyjson_mut_val* val = yyjson_convert<V>::to_json(doc, kv.second);
             yyjson_mut_obj_add(obj, key, val);
         }
@@ -263,14 +261,10 @@ struct yyjson_convert<cc::Value> {
             using T = std::decay_t<decltype(v)>;
             if constexpr (std::is_same_v<T, std::nullptr_t>) {
                 val = yyjson_mut_null(doc);
-            } else if constexpr (std::is_same_v<T, cc::Value::array_t>) {
-                val =
-                    yyjson_convert<typename cc::Value::array_t::element_type>::to_json(doc,
-                                                                                       *v);
-            } else if constexpr (std::is_same_v<T, cc::Value::object_t>) {
-                val = yyjson_convert<typename cc::Value::object_t::element_type>::to_json(
-                    doc, *v);
-
+            } else if constexpr (std::is_same_v<T, cc::Value::string_t>
+                                 || std::is_same_v<T, cc::Value::array_t>
+                                 || std::is_same_v<T, cc::Value::object_t>) {
+                val = yyjson_convert<typename T::element_type>::to_json(doc, *v);
             } else {
                 val = yyjson_convert<T>::to_json(doc, v);
             }
@@ -327,7 +321,7 @@ struct yyjson_convert {
         hana::for_each(rhs, [&](const auto& pair) {
             auto key           = hana::to<char const*>(hana::first(pair));
             const auto& member = hana::second(pair);
-            using Member = std::remove_const_t<std::remove_reference_t<decltype(member)>>;
+            using Member       = std::remove_const_t<std::remove_reference_t<decltype(member)>>;
 
             // val == nullptr if Member is a optional
             auto val = yyjson_convert<Member>::to_json(doc, member);

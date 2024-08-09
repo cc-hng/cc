@@ -114,8 +114,7 @@ public:
 
         // Append an HTTP rel-path to a local filesystem path.
         // The returned path is normalized for the platform.
-        static inline std::string
-        path_cat(beast::string_view base, beast::string_view path) {
+        static inline std::string path_cat(beast::string_view base, beast::string_view path) {
             if (base.empty()) return std::string(path);
             std::string result(base);
 #ifdef BOOST_MSVC
@@ -174,8 +173,8 @@ public:
 
                 ws_stream ws(stream->release_socket());
                 stream = nullptr;
-                ws.set_option(beast::websocket::stream_base::timeout::suggested(
-                    beast::role_type::server));
+                ws.set_option(
+                    beast::websocket::stream_base::timeout::suggested(beast::role_type::server));
 
                 // Accept the websocket handshake
                 co_await ws.async_accept(req.request);
@@ -192,7 +191,7 @@ public:
     }
 
     /// route
-    template <typename Fn>
+    template <typename Fn = http_handle_t>
     void use(Fn&& handler) {
         // router_.use(std::move(handler));
         router_.use(make_handle(std::forward<Fn>(handler)));
@@ -252,8 +251,8 @@ private:
     // Accepts incoming connections and launches the sessions
     asio::awaitable<void> do_listen(tcp::endpoint endpoint) {
         // Open the acceptor
-        auto acceptor = asio::use_awaitable.as_default_on(
-            tcp::acceptor(co_await asio::this_coro::executor));
+        auto acceptor =
+            asio::use_awaitable.as_default_on(tcp::acceptor(co_await asio::this_coro::executor));
         acceptor.open(endpoint.protocol());
 
         // Disallow address reuse
@@ -368,8 +367,7 @@ private:
     const options_t option_;
     Router router_;
     std::list<static_router_t> static_router_;
-    std::list<std::function<asio::awaitable<bool>(const http_request_t&,
-                                                  std::shared_ptr<tcp_stream>)>>
+    std::list<std::function<asio::awaitable<bool>(const http_request_t&, std::shared_ptr<tcp_stream>)>>
         ws_router_;
 };
 

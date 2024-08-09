@@ -23,7 +23,7 @@ public:
     ~Router() {}
 
     inline auto& use(http_handle_t&& h) {
-        handlers_.emplace_back((http_handle_t &&) h);
+        handlers_.emplace_back((http_handle_t&&)h);
         return *this;
     }
 
@@ -33,11 +33,10 @@ public:
             Functor(http::verb method, std::string_view path, http_handle_t&& handler)
               : method_(method)
               , parse_path_(compile_route(path))
-              , handler_((http_handle_t &&) handler) {}
+              , handler_((http_handle_t&&)handler) {}
 
             boost::asio::awaitable<void>
-            operator()(const request_type& req, response_type& resp,
-                       const http_next_handle_t& go) {
+            operator()(const request_type& req, response_type& resp, const http_next_handle_t& go) {
                 if (req->method() != method_) {
                     co_return co_await go();
                 }
@@ -57,7 +56,7 @@ public:
             http_handle_t handler_;
         };
 
-        use(Functor(method, path, (http_handle_t &&) handler));
+        use(Functor(method, path, (http_handle_t&&)handler));
         return *this;
     }
 
@@ -72,9 +71,8 @@ public:
     }
 
 private:
-    boost::asio::awaitable<void>
-    run_impl(int idx, const request_type& req, response_type& resp,
-             const http_next_handle_t& go = nullptr) {
+    boost::asio::awaitable<void> run_impl(int idx, const request_type& req, response_type& resp,
+                                          const http_next_handle_t& go = nullptr) {
         if (idx >= handlers_.size()) {
             if (go) {
                 co_await go();
@@ -86,7 +84,18 @@ private:
         auto next      = [&, this, idx]() -> boost::asio::awaitable<void> {
             co_await run_impl(idx + 1, req, resp);
         };
-        co_await fn(req, resp, next);
+        bool throw_exception = false;
+        try {
+            co_await fn(req, resp, next);
+        } catch (std::exception& e) {
+            throw_exception = true;
+            resp->result(http::status::internal_server_error);
+            resp->body() = e.what();
+        }
+
+        if (throw_exception) {
+            co_await next();
+        }
     }
 
 public:
@@ -112,8 +121,7 @@ public:
                         const auto next_end_pos  = regex.find(':', start_pos + 1);
                         const auto slash_end_pos = regex.find('/', start_pos);
                         const auto end_pos       = std::min(slash_end_pos, next_end_pos);
-                        const auto key_name =
-                            regex.substr(start_pos + 1, end_pos - start_pos - 1);
+                        const auto key_name = regex.substr(start_pos + 1, end_pos - start_pos - 1);
 
                         if (key_name.empty()) {
                             throw std::runtime_error(std::string("Empty parameter name "
@@ -147,9 +155,8 @@ public:
                     return std::make_tuple(false, nullptr);
                 }
 
-                auto params =
-                    std::make_shared<std::unordered_map<std::string, std::string>>();
-                int i = 1;
+                auto params = std::make_shared<std::unordered_map<std::string, std::string>>();
+                int i       = 1;
                 for (auto key : keys_) {
                     params->emplace(std::move(key), cm[i++].str());
                 }

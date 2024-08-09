@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
+#include <variant>
 #include <vector>
 
 namespace boost {
@@ -161,5 +162,17 @@ struct result_of<F(Args...)> {
 
 template <typename T>
 using result_of_t = typename result_of<T>::type;
+
+// in variant
+template <typename T, typename Variant>
+struct in_variant : std::false_type {};
+
+template <typename T, typename Head, typename... Args>
+struct in_variant<T, std::variant<Head, Args...>>
+  : std::conditional_t<std::is_same_v<T, Head>, std::true_type, in_variant<T, std::variant<Args...>>> {
+};
+
+template <typename T, typename Variant>
+constexpr bool in_variant_v = in_variant<T, Variant>::value;
 
 }  // namespace cc

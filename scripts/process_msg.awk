@@ -1,8 +1,8 @@
 #!/usr/bin/awk -f
 
 function trim(s) {
-  sub(/^[ \t]+/, "", s)  # 去除开头的空白字符
-  sub(/[ \t]+$/, "", s)  # 去除结尾的空白字符
+  sub(/^[ \t]+/, "", s)
+  sub(/[ \t]+$/, "", s)
   return s
 }
 
@@ -12,16 +12,9 @@ BEGIN {
 }
 
 {
-  if ($0 ~ /#[ \t]*include/) {
-    in_headers = 1
+  if ($0 ~ /#[ \t]*pragma.*once/) {
     print $0
-    next
-  }
-
-  if (in_headers && $0 !~ /#[ \t]*include/) {
-    in_headers = 0
-    print "#include <boost/hana.hpp>"
-    print $0
+    print "\n#include <boost/hana.hpp>\n"
     next
   }
 
@@ -33,6 +26,7 @@ BEGIN {
   }
 
   if (in_struct) {
+    sub("//.*", "")
     struct_content = struct_content $0 " "
 
     if ($0 ~ /}[ \t]*;/) {
@@ -47,9 +41,17 @@ BEGIN {
       if (n > 0) {
         print "  BOOST_HANA_DEFINE_STRUCT(" struct_name ","
         for (i=1; i<n; i++) {
-          split(trim(arr[i]), arr0)
-          sep = i == n - 1 ? ");" : ","
-          print "    (" arr0[1] ", " arr0[2] ")" sep
+          line = trim(arr[i])
+          num_words = split(line, words)
+          type = words[1]
+          for (j=2; j<=num_words; j++) {
+            var = words[j]
+            gsub(/,/, "", var)  # Remove commas
+            if (var != "") {
+              sep = (i == n-1 && j == num_words) ? ");" : ","
+              print "    (" type ", " var ")" sep
+            }
+          }
         }
       } else {
         print "  BOOST_HANA_DEFINE_STRUCT(" struct_name ");"

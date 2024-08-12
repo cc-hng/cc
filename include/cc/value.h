@@ -120,11 +120,14 @@ public:
             if (std::tuple_size_v<T> != arr.size()) {
                 throw std::runtime_error("Tuple size mismatch");
             }
-            return std::apply(
+            T t;
+            std::apply(
                 [&arr](auto&... args) {
-                    return T{arr[args].template get<std::tuple_element_t<args, T>>()...};
+                    int i = 0;
+                    ((args = arr[i++].template get<std::decay_t<decltype(args)>>()), ...);
                 },
-                std::make_index_sequence<std::tuple_size_v<T>>());
+                t);
+            return t;
         } else if constexpr (cc::is_vector_v<T>) {
             if (!is_array())
                 throw std::runtime_error("Cannot convert non-array Value to std::vector");
@@ -175,8 +178,7 @@ public:
         if constexpr (in_variant_v<T, variant_t>) {
             *data_ = value;
         } else if constexpr (std::is_same_v<cc::Value, T>) {
-            // TODO: deepcopy
-            data_ = value.data_;
+            *this = deepcopy(value);
         } else if constexpr (std::is_integral_v<T>) {
             *data_ = (int)value;
         } else if constexpr (std::is_same_v<T, float>) {

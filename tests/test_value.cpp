@@ -31,6 +31,9 @@ TEST(value, tuple) {
     v.set(t);
     EXPECT_TRUE(v[0].get<int>() == 1);
     EXPECT_TRUE(v[1].get<std::string>() == "x");
+
+    auto t2 = v.get<std::tuple<int, std::string>>();
+    EXPECT_TRUE(t == t2);
 }
 
 TEST(value, shared) {

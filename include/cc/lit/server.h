@@ -1,10 +1,11 @@
+#pragma once
+
 #include <iostream>
 #include <list>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <tuple>
-#include <type_traits>
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 #include <boost/callable_traits.hpp>

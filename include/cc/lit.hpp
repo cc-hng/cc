@@ -9,3 +9,5 @@
 #include <cc/lit/router.h>
 #include <cc/lit/server.h>
 #include <cc/lit/util.h>
+
+namespace lit = cc::lit;  // NOLINT

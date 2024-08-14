@@ -57,7 +57,9 @@ public:
             }
         }
 
-        if constexpr (std::is_same_v<T, bool>) {
+        if constexpr (std::is_same_v<T, cc::Value>) {
+            return deepcopy(*this);
+        } else if constexpr (std::is_same_v<T, bool>) {
             if (is_int()) {
                 return std::get<int>(*data_) != 0;
             } else if (is_string()) {

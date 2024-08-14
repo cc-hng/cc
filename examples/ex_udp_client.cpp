@@ -3,15 +3,6 @@
 #include <boost/asio.hpp>
 #include <cc/asio.hpp>
 
-namespace asio = boost::asio;
-
-namespace boost {
-namespace asio {
-template <class T, class... Args>
-using task = awaitable<T, Args...>;
-}
-}  // namespace boost
-
 using boost::asio::ip::udp;
 
 int main(int argc, char* argv[]) {
@@ -24,8 +15,7 @@ int main(int argc, char* argv[]) {
         auto& io_context = cc::AsioPool::instance().get_io_context();
 
         udp::resolver resolver(io_context);
-        udp::endpoint receiver_endpoint =
-            *resolver.resolve(udp::v4(), argv[1], "daytime").begin();
+        udp::endpoint receiver_endpoint = *resolver.resolve(udp::v4(), argv[1], "daytime").begin();
 
         udp::socket socket(io_context);
         socket.open(udp::v4());

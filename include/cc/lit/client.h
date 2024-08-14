@@ -72,8 +72,8 @@ public:
         }
 
         lock.unlock();
-        auto resolver = asio::use_awaitable.as_default_on(
-            tcp::resolver(co_await asio::this_coro::executor));
+        auto resolver =
+            asio::use_awaitable.as_default_on(tcp::resolver(co_await asio::this_coro::executor));
         tcp_stream stream = asio::use_awaitable.as_default_on(
             beast::tcp_stream(co_await asio::this_coro::executor));
 
@@ -145,8 +145,14 @@ fetch(std::string_view url, const fetch_option_t options = {}) {
 
         http::request<http::string_body> req{options.method, requri, 11};
         req.set(http::field::host, host);
+        req.set(http::field::content_type, "application/json");
         req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
         req.keep_alive(options.keepalive);
+        req.body() = options.body;
+        for (const auto& kv : options.headers) {
+            req.set(kv.first, kv.second);
+        }
+        req.prepare_payload();
 
         conn->stream.expires_after(std::chrono::seconds(options.timeout));
         std::ignore = co_await http::async_write(conn->stream, req);
@@ -165,6 +171,40 @@ fetch(std::string_view url, const fetch_option_t options = {}) {
     }
 
     co_return res;
+}
+
+template <typename Body = beast::http::string_body>
+asio::awaitable<beast::http::response<Body>>
+http_get(std::string_view url, const fetch_option_t::headers_type& headers, bool keepalive = false) {
+    fetch_option_t opt = {
+        .headers   = headers,
+        .keepalive = keepalive,
+    };
+    co_return co_await fetch(url, opt);
+}
+
+template <typename Body = beast::http::string_body>
+asio::awaitable<beast::http::response<Body>> http_get(std::string_view url, bool keepalive = false) {
+    co_return co_await http_get(url, {}, keepalive);
+}
+
+template <typename Body = beast::http::string_body>
+asio::awaitable<beast::http::response<Body>>
+http_post(std::string_view url, std::string_view body, const fetch_option_t::headers_type& headers,
+          bool keepalive = false) {
+    fetch_option_t opt = {
+        .method    = fetch_option_t::method_type::post,
+        .headers   = headers,
+        .body      = std::string(body),
+        .keepalive = keepalive,
+    };
+    co_return co_await fetch(url, opt);
+}
+
+template <typename Body = beast::http::string_body>
+asio::awaitable<beast::http::response<Body>>
+http_post(std::string_view url, std::string_view body, bool keepalive = false) {
+    co_return co_await http_post(url, body, {}, keepalive);
 }
 
 inline void fetch_pool_release() {

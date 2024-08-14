@@ -148,7 +148,7 @@ fetch(std::string_view url, const fetch_option_t options = {}) {
         req.set(http::field::content_type, "application/json");
         req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
         req.keep_alive(options.keepalive);
-        req.body() = options.body;
+        req.body() = std::move(options.body);
         for (const auto& kv : options.headers) {
             req.set(kv.first, kv.second);
         }
@@ -190,12 +190,12 @@ asio::awaitable<beast::http::response<Body>> http_get(std::string_view url, bool
 
 template <typename Body = beast::http::string_body>
 asio::awaitable<beast::http::response<Body>>
-http_post(std::string_view url, std::string_view body, const fetch_option_t::headers_type& headers,
+http_post(std::string_view url, std::string body, const fetch_option_t::headers_type& headers,
           bool keepalive = false) {
     fetch_option_t opt = {
         .method    = fetch_option_t::method_type::post,
         .headers   = headers,
-        .body      = std::string(body),
+        .body      = std::move(body),
         .keepalive = keepalive,
     };
     co_return co_await fetch(url, opt);
@@ -203,8 +203,8 @@ http_post(std::string_view url, std::string_view body, const fetch_option_t::hea
 
 template <typename Body = beast::http::string_body>
 asio::awaitable<beast::http::response<Body>>
-http_post(std::string_view url, std::string_view body, bool keepalive = false) {
-    co_return co_await http_post(url, body, {}, keepalive);
+http_post(std::string_view url, std::string body, bool keepalive = false) {
+    co_return co_await http_post(url, std::move(body), {}, keepalive);
 }
 
 inline void fetch_pool_release() {

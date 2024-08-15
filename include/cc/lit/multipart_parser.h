@@ -46,8 +46,7 @@ inline bool is_space_or_tab(char c) {
     return c == ' ' || c == '\t';
 }
 
-inline std::pair<size_t, size_t>
-trim(const char* b, const char* e, size_t left, size_t right) {
+inline std::pair<size_t, size_t> trim(const char* b, const char* e, size_t left, size_t right) {
     while (b + left < e && is_space_or_tab(b[left])) {
         left++;
     }
@@ -123,8 +122,7 @@ public:
                     static const std::string header_name = "content-type:";
                     const auto header                    = buf_head(pos);
                     if (start_with_case_ignore(header, header_name)) {
-                        file_.content_type =
-                            detail::trim_copy(header.substr(header_name.size()));
+                        file_.content_type = detail::trim_copy(header.substr(header_name.size()));
                     } else {
                         std::smatch m;
                         if (std::regex_match(header, m, re_content_disposition)) {
@@ -226,8 +224,7 @@ private:
     MultipartFormData file_;
 
     // Buffer
-    bool
-    start_with(const std::string& a, size_t spos, size_t epos, const std::string& b) const {
+    bool start_with(const std::string& a, size_t spos, size_t epos, const std::string& b) const {
         if (epos - spos < b.size()) {
             return false;
         }
@@ -313,52 +310,112 @@ struct multipart_formdata_t {
     std::string filename;
     std::string content_type;
     std::string_view content;
-};
 
-[[maybe_unused]]
-static std::vector<multipart_formdata_t>
-multipart_formdata_parse(const http_request_t& req) {
-    auto content_type = req->at(http::field::content_type);
-    auto boundary     = detail::multipart_parse_content_type(content_type);
-    if (boundary.empty()) {
-        throw std::runtime_error("Error multipart:" + std::string(content_type));
+    static std::vector<multipart_formdata_t> decode(const http_request_t& req) {
+        auto content_type = req->at(http::field::content_type);
+        auto boundary     = detail::multipart_parse_content_type(content_type);
+        if (boundary.empty()) {
+            throw std::runtime_error("Error multipart:" + std::string(content_type));
+        }
+
+        class MFDP {
+        public:
+            std::vector<multipart_formdata_t>
+            operator()(std::string_view boundary, std::string_view body) {
+                parser_.set_boundary(std::string(boundary));
+                parser_.parse(body.data(), body.size(),
+                              std::bind(&MFDP::content_callback, this, std::placeholders::_1,
+                                        std::placeholders::_2),
+                              std::bind(&MFDP::header_callback, this, std::placeholders::_1));
+                return std::move(result_);
+            }
+
+        private:
+            bool content_callback(const char* data, size_t data_length) {
+                cur_.content = std::string_view(data, data_length);
+                result_.emplace_back(std::move(cur_));
+                return true;
+            }
+
+            bool header_callback(const detail::MultipartFormData& file) {
+                cur_.filename     = std::move(file.filename);
+                cur_.name         = std::move(file.name);
+                cur_.content_type = std::move(file.content_type);
+                return true;
+            }
+
+        private:
+            detail::MultipartFormDataParser parser_;
+            multipart_formdata_t cur_;
+            std::vector<multipart_formdata_t> result_;
+        };
+
+        MFDP mfdp;
+        return mfdp(boundary, req->body());
     }
 
-    class MFDP {
-    public:
-        std::vector<multipart_formdata_t>
-        operator()(std::string_view boundary, std::string_view body) {
-            parser_.set_boundary(std::string(boundary));
-            parser_.parse(body.data(), body.size(),
-                          std::bind(&MFDP::content_callback, this, std::placeholders::_1,
-                                    std::placeholders::_2),
-                          std::bind(&MFDP::header_callback, this, std::placeholders::_1));
-            return std::move(result_);
+    static void encode(http_request_t& req, const std::vector<multipart_formdata_t>& formdata,
+                       const std::string& boundary) {
+        std::ostringstream oss;
+        for (const auto& part : formdata) {
+            // Boundary
+            oss << "--" << boundary << "\r\n";
+
+            // Content-Disposition
+            oss << "Content-Disposition: form-data; name=\"" << part.name << "\"";
+            if (!part.filename.empty()) {
+                oss << "; filename=\"" << part.filename << "\"";
+            }
+            oss << "\r\n";
+
+            // Content-Type
+            if (!part.content_type.empty()) {
+                oss << "Content-Type: " << part.content_type << "\r\n";
+            }
+
+            // Content
+            oss << "\r\n" << part.content << "\r\n";
         }
 
-    private:
-        bool content_callback(const char* data, size_t data_length) {
-            cur_.content = std::string_view(data, data_length);
-            result_.emplace_back(std::move(cur_));
-            return true;
+        // Closing boundary
+        oss << "--" << boundary << "--\r\n";
+
+        req->method(http::verb::post);
+        req->version(11);
+        req->set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+        req->set(http::field::content_type, "multipart/form-data; boundary=" + boundary);
+        req->body() = oss.str();
+        req->prepare_payload();
+    }
+
+    static std::string
+    encode(const std::vector<multipart_formdata_t>& formdata, const std::string& boundary) {
+        std::ostringstream oss;
+        for (const auto& part : formdata) {
+            // Boundary
+            oss << "--" << boundary << "\r\n";
+
+            // Content-Disposition
+            oss << "Content-Disposition: form-data; name=\"" << part.name << "\"";
+            if (!part.filename.empty()) {
+                oss << "; filename=\"" << part.filename << "\"";
+            }
+            oss << "\r\n";
+
+            // Content-Type
+            if (!part.content_type.empty()) {
+                oss << "Content-Type: " << part.content_type << "\r\n";
+            }
+
+            // Content
+            oss << "\r\n" << part.content << "\r\n";
         }
 
-        bool header_callback(const detail::MultipartFormData& file) {
-            cur_.filename     = std::move(file.filename);
-            cur_.name         = std::move(file.name);
-            cur_.content_type = std::move(file.content_type);
-            return true;
-        }
-
-    private:
-        detail::MultipartFormDataParser parser_;
-        multipart_formdata_t cur_;
-        std::vector<multipart_formdata_t> result_;
-    };
-
-    MFDP mfdp;
-    return mfdp(boundary, req->body());
-}
+        // Closing boundary
+        oss << "--" << boundary << "--\r\n";
+        return oss.str();
+    }
+};
 
 }  // namespace lit
 }  // namespace cc

@@ -3,12 +3,14 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <random>
 #include <string>
 #include <unordered_map>
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 #include <boost/core/noncopyable.hpp>
 #include <boost/url.hpp>
+#include <cc/lit/multipart_parser.h>
 #include <fmt/core.h>
 
 namespace cc {
@@ -205,6 +207,33 @@ template <typename Body = beast::http::string_body>
 asio::awaitable<beast::http::response<Body>>
 http_post(std::string_view url, std::string body, bool keepalive = false) {
     co_return co_await http_post(url, std::move(body), {}, keepalive);
+}
+
+template <typename Body = http::string_body>
+asio::awaitable<beast::http::response<Body>>
+http_upload(std::string_view url, const std::vector<multipart_formdata_t>& formdata,
+            bool keepalive = false) {
+    static auto generate_boundary = []() {
+        const std::string chars = "0123456789"
+                                  "abcdefghijklmnopqrstuvwxyz"
+                                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        std::random_device rd;
+        std::mt19937 generator(rd());
+        std::uniform_int_distribution<> dist(0, chars.size() - 1);
+
+        std::string boundary = "----WebKitFormBoundary";
+        for (int i = 0; i < 16; ++i) {  // Generate a 16-character random string
+            boundary += chars[dist(generator)];
+        }
+        return boundary;
+    };
+
+    auto boundary                        = generate_boundary();
+    auto body                            = multipart_formdata_t::encode(formdata, boundary);
+    fetch_option_t::headers_type headers = {
+        {"Content-Type", "multipart/form-data; boundary=" + boundary}
+    };
+    co_return co_await http_post(url, std::move(body), headers, keepalive);
 }
 
 inline void fetch_pool_release() {

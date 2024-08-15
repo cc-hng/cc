@@ -43,7 +43,7 @@ public:
         });
 
         app_.Post("/api/upload", [](const cc::lit::http_request_t& req, auto& resp) {
-            auto result = cc::lit::multipart_formdata_parse(req);
+            auto result = cc::lit::multipart_formdata_t::decode(req);
             for (const auto& f : result) {
                 fmt::print("name:{}, filename:{}, content_type:{}\n", f.name, f.filename,
                            f.content_type);

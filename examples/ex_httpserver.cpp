@@ -20,13 +20,12 @@ public:
         app_.serve_static("/public", "/data/www/html");
 
         app_.Get("/api/a",
-                 [](const auto& req, auto& resp,
-                    const auto& go) -> boost::asio::awaitable<void> {
+                 [](const auto& req, auto& resp, const auto& go) -> boost::asio::awaitable<void> {
                      co_await cc::async_sleep(100);
                      co_return resp.set_content("<p1>hello,world</p1>", "text/html");
                  });
 
-        app_.Get("/api/b", [](const auto& req, auto& resp) {
+        app_.Any("/api/b", [](const auto& req, auto& resp) {
             resp.set_content("<p1>hello,world2</p1>", "text/html");
         });
 

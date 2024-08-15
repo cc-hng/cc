@@ -211,6 +211,10 @@ public:
         route(http::verb::post, path, std::move(handler));
     }
 
+    void Any(std::string_view path, auto&& handler) {
+        route((http::verb)-1, path, std::move(handler));
+    }
+
 private:
     template <typename Fn>
     static http_handle_t make_handle(Fn&& f) {

@@ -37,8 +37,10 @@ public:
 
             boost::asio::awaitable<void>
             operator()(const request_type& req, response_type& resp, const http_next_handle_t& go) {
-                if (req->method() != method_) {
-                    co_return co_await go();
+                if (method_ != (http::verb)-1) {
+                    if (req->method() != method_) {
+                        co_return co_await go();
+                    }
                 }
 
                 auto [matched, params] = parse_path_(req.path);

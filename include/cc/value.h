@@ -330,6 +330,24 @@ public:
         return obj.find(std::string(key)) != obj.end();
     }
 
+    void update(const Value& other) {
+        if (!is_object() || !other.is_object()) {
+            throw std::runtime_error("Both Values must be objects to update");
+        }
+
+        auto& obj1 = *std::get<object_t>(*data_);
+        auto& obj2 = *std::get<object_t>(*other.data_);
+        for (auto& [k, v] : obj1) {
+            if (obj2.count(k)) {
+                if (v.is_object() && obj2[k].is_object()) {
+                    v.update(obj2[k]);
+                } else {
+                    obj1[k] = deepcopy(obj2[k]);
+                }
+            }
+        }
+    }
+
 public:
     static Value deepcopy(const Value& v1) {
         Value result;

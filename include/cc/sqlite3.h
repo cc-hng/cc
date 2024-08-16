@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <boost/core/noncopyable.hpp>
 #include <boost/hana.hpp>
 #include <cc/type_traits.h>
 #include <cc/util.h>
@@ -57,7 +58,7 @@ struct sqlite3_type<std::optional<T>> {
 
 template <typename MutexPolicy = cc::NonMutex, template <typename> class ReadLock = cc::LockGuard,
           template <typename> class WriteLock = cc::LockGuard>
-class Sqlite3pp final {
+class Sqlite3pp final : boost::noncopyable {
 public:
     Sqlite3pp() : closed_(false), auto_commit_(true), conn_(nullptr) {}
 
@@ -115,16 +116,15 @@ public:
     }
 
     template <typename R = void, typename... Args>
-    std::enable_if_t<std::is_void_v<R>, void>
-    execute(std::string_view stmt, Args&&... args) {
+    std::enable_if_t<std::is_void_v<R>, void> execute(std::string_view stmt, Args&&... args) {
         WriteLock<MutexPolicy> _lck(mtx_);
         execute_impl<void>(stmt, std::forward<Args>(args)...);
     }
 
     // fake orm
     template <typename T, typename = hana::when<hana::Struct<T>::value>>
-    void create_table(std::string_view tbl_name,
-                      std::vector<std::vector<std::string>> indexes = {}) {
+    void
+    create_table(std::string_view tbl_name, std::vector<std::vector<std::string>> indexes = {}) {
         std::vector<std::string> stmts;
         std::string stmt;
         std::string seq;
@@ -142,7 +142,7 @@ public:
         hana::for_each(T{}, [&](const auto& pair) {
             auto key           = hana::to<char const*>(hana::first(pair));
             const auto& member = hana::second(pair);
-            using Member = std::remove_const_t<std::remove_reference_t<decltype(member)>>;
+            using Member       = std::remove_const_t<std::remove_reference_t<decltype(member)>>;
 
             std::string type     = detail::sqlite3_type<Member>::get();
             std::string not_null = cc::is_optional_v<Member> ? "" : " NOT NULL";
@@ -206,8 +206,7 @@ private:
             if constexpr (sizeof(T0) <= 4) {
                 rc = sqlite3_bind_int(vm, param_no, static_cast<int>(std::forward<T>(t)));
             } else {
-                rc = sqlite3_bind_int64(vm, param_no,
-                                        static_cast<int64_t>(std::forward<T>(t)));
+                rc = sqlite3_bind_int64(vm, param_no, static_cast<int64_t>(std::forward<T>(t)));
             }
         } else if constexpr (std::is_same_v<T0, float> || std::is_same_v<T0, double>) {
             rc = sqlite3_bind_double(vm, param_no, std::forward<T>(t));

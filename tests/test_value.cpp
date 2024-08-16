@@ -44,6 +44,24 @@ TEST(value, shared) {
     EXPECT_TRUE(v1.get<int>() == 3);
 }
 
+TEST(value, update) {
+    cc::Value v1, v2;
+    std::unordered_map<std::string, int> m = {
+        {"a", 1},
+        {"b", 2},
+    };
+    v1.set(m);
+    std::unordered_map<std::string, int> n = {
+        {"b", 3},
+        {"c", 4},
+    };
+    v2.set(n);
+    v1.update(v2);
+    EXPECT_TRUE(v1.get<int>("a") == 1);
+    EXPECT_TRUE(v1.get<int>("b") == 3);
+    EXPECT_TRUE(v1["c"].is_null());
+}
+
 TEST(value, deepcopy) {
     cc::Value v1("hello1");
     auto v2 = cc::Value::deepcopy(v1);

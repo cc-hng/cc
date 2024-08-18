@@ -89,10 +89,10 @@ public:
         }
 
         // pragma
-        execute("PRAGMA journal_mode=WAL;");
-        execute("PRAGMA synchronous=NORMAL;");
-        execute("PRAGMA case_sensitive_like = ON;");
-        execute("PRAGMA locking_mode = EXCLUSIVE;");
+        execute_impl<void>("PRAGMA journal_mode=WAL;");
+        execute_impl<void>("PRAGMA synchronous=NORMAL;");
+        execute_impl<void>("PRAGMA case_sensitive_like = ON;");
+        execute_impl<void>("PRAGMA locking_mode = EXCLUSIVE;");
 
         closed_ = false;
     }

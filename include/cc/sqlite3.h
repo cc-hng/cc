@@ -224,6 +224,12 @@ private:
             rc = sqlite3_bind_text(vm, param_no, t.data(), t.size(), SQLITE_TRANSIENT);
         } else if constexpr (std::is_same_v<T0, std::vector<char>>) {
             rc = sqlite3_bind_text(vm, param_no, t.data(), t.size(), SQLITE_TRANSIENT);
+        } else if constexpr (cc::is_optional_v<T0>) {
+            if (!t.has_value()) {
+                rc = sqlite3_bind_null(vm, param_no);
+            } else {
+                sqlite3pp_bind<typename T0::value_type>(vm, param_no, std::forward<T0>(t).value());
+            }
         } else {
             throw std::runtime_error("Unknown sqlite3 type !!!");
         }
@@ -251,6 +257,11 @@ private:
             auto blob = (const char*)sqlite3_column_blob(vm, column);
             int len   = sqlite3_column_bytes(vm, column);
             t         = std::vector<char>(blob, blob + len);
+        } else if constexpr (cc::is_optional_v<T>) {
+            using T0 = typename T::value_type;
+            T0 t0;
+            sqlite3pp_column(vm, column, t0);
+            t = t0;
         } else {
             throw std::runtime_error("Unknown sqlite3 type !!!");
         }

@@ -89,10 +89,10 @@ public:
         }
 
         // pragma
-        execute_impl<void>("PRAGMA journal_mode=WAL;");
-        execute_impl<void>("PRAGMA synchronous=NORMAL;");
-        execute_impl<void>("PRAGMA case_sensitive_like = ON;");
-        execute_impl<void>("PRAGMA locking_mode = EXCLUSIVE;");
+        unsafe_execute("PRAGMA journal_mode=WAL;");
+        unsafe_execute("PRAGMA synchronous=NORMAL;");
+        unsafe_execute("PRAGMA case_sensitive_like=ON;");
+        unsafe_execute("PRAGMA locking_mode=NORMAL;");
 
         closed_ = false;
     }
@@ -108,17 +108,23 @@ public:
         }
     }
 
+    decltype(auto) make_lock() { return std::make_unique<WriteLock<MutexPolicy>>(mtx_); }
+
+    template <typename R = void, typename... Args>
+    decltype(auto) execute(std::string_view stmt, Args&&... args) {
+        WriteLock<MutexPolicy> _lck(mtx_);
+        return unsafe_execute<R>(stmt, std::forward<Args>(args)...);
+    }
+
     template <typename R = void, typename... Args>
     std::enable_if_t<!std::is_void_v<R>, std::vector<R>>
-    execute(std::string_view stmt, Args&&... args) {
-        WriteLock<MutexPolicy> _lck(mtx_);
+    unsafe_execute(std::string_view stmt, Args&&... args) {
         return execute_impl<R>(stmt, std::forward<Args>(args)...);
     }
 
     template <typename R = void, typename... Args>
-    std::enable_if_t<std::is_void_v<R>, void> execute(std::string_view stmt, Args&&... args) {
-        WriteLock<MutexPolicy> _lck(mtx_);
-        execute_impl<void>(stmt, std::forward<Args>(args)...);
+    std::enable_if_t<std::is_void_v<R>> unsafe_execute(std::string_view stmt, Args&&... args) {
+        return execute_impl<void>(stmt, std::forward<Args>(args)...);
     }
 
     // fake orm

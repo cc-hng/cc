@@ -148,7 +148,7 @@ public:
         hana::for_each(T{}, [&](const auto& pair) {
             auto key           = hana::to<char const*>(hana::first(pair));
             const auto& member = hana::second(pair);
-            using Member       = std::remove_const_t<std::remove_reference_t<decltype(member)>>;
+            using Member       = std::decay_t<decltype(member)>;
 
             std::string type     = detail::sqlite3_type<Member>::get();
             std::string not_null = cc::is_optional_v<Member> ? "" : " NOT NULL";
@@ -193,7 +193,7 @@ END;)",
         }
 
         for (auto& s : stmts) {
-            execute(s);
+            fprintf(stderr, "--------------- \n%s\n", s.c_str());
         }
     }
 
@@ -228,7 +228,9 @@ private:
             if (!t.has_value()) {
                 rc = sqlite3_bind_null(vm, param_no);
             } else {
-                sqlite3pp_bind<typename T0::value_type>(vm, param_no, std::forward<T0>(t).value());
+                using T1 = typename T0::value_type;
+                T1 t1    = t.value();
+                sqlite3pp_bind<T1>(vm, param_no, std::move(t1));
             }
         } else {
             throw std::runtime_error("Unknown sqlite3 type !!!");

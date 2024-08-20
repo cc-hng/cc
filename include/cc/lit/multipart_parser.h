@@ -309,7 +309,7 @@ struct multipart_formdata_t {
     std::string name;
     std::string filename;
     std::string content_type;
-    std::string_view content;
+    std::string content;
 
     static std::vector<multipart_formdata_t> decode(const http_request_t& req) {
         auto content_type = req->at(http::field::content_type);

@@ -212,7 +212,7 @@ http_post(std::string_view url, std::string body, bool keepalive = false) {
 template <typename Body = http::string_body>
 asio::awaitable<beast::http::response<Body>>
 http_upload(std::string_view url, const std::vector<multipart_formdata_t>& formdata,
-            bool keepalive = false) {
+            const fetch_option_t::headers_type& headers, bool keepalive = false) {
     static auto generate_boundary = []() {
         const std::string chars = "0123456789"
                                   "abcdefghijklmnopqrstuvwxyz"
@@ -228,12 +228,18 @@ http_upload(std::string_view url, const std::vector<multipart_formdata_t>& formd
         return boundary;
     };
 
-    auto boundary                        = generate_boundary();
-    auto body                            = multipart_formdata_t::encode(formdata, boundary);
-    fetch_option_t::headers_type headers = {
-        {"Content-Type", "multipart/form-data; boundary=" + boundary}
-    };
-    co_return co_await http_post(url, std::move(body), headers, keepalive);
+    auto boundary = generate_boundary();
+    auto body     = multipart_formdata_t::encode(formdata, boundary);
+    auto headers0 = headers;
+    headers0.emplace("Content-Type", "multipart/form-data; boundary=" + boundary);
+    co_return co_await http_post(url, std::move(body), headers0, keepalive);
+}
+
+template <typename Body = http::string_body>
+asio::awaitable<beast::http::response<Body>>
+http_upload(std::string_view url, const std::vector<multipart_formdata_t>& formdata,
+            bool keepalive = false) {
+    co_return co_await http_upload(url, formdata, {}, keepalive);
 }
 
 inline void fetch_pool_release() {

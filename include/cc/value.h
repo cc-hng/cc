@@ -41,6 +41,7 @@ public:
     Value& operator=(Value&& rhs) { data_ = std::move(rhs.data_); return *this; }
     // clang-format on
 
+    int type() const { return data_->index(); }
     bool is_null() const { return std::holds_alternative<std::nullptr_t>(*data_); }
     bool is_bool() const { return std::holds_alternative<bool>(*data_); }
     bool is_int() const { return std::holds_alternative<int>(*data_); }
@@ -318,8 +319,8 @@ public:
     }
 
     template <typename Fn>
-    void visit(Fn&& fn) const {
-        std::visit(std::forward<Fn>(fn), *data_);
+    decltype(auto) visit(Fn&& fn) const {
+        return std::visit(std::forward<Fn>(fn), *data_);
     }
 
     bool contains(std::string_view key) const {

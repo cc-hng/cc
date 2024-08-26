@@ -19,10 +19,13 @@ asio::task<void> consumer(cc::chan::Receiver<int> receiver) {
         // 模拟长时间任务
         // co_await cc::async_sleep(1500);
         auto item = co_await (*receiver)();
-        if (!item.has_value()) {
+        if (!item.size()) {
             break;
         }
-        SPDLOG_INFO("[consumer] recv {}", *item);
+
+        for (auto i : item) {
+            SPDLOG_INFO("[consumer] recv {}", i);
+        }
     }
 
     SPDLOG_INFO("[consumer] over !!!");

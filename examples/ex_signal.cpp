@@ -44,13 +44,14 @@ void on_pos(Point3D pos) {
 asio::awaitable<void> async_background_task() {
     auto [_, stream] = kSig.stream<int, int>("vel");
     for (;;) {
-        auto item = co_await (*stream)();
-        if (!item.has_value()) {
+        auto items = co_await (*stream)();
+        if (!items.size()) {
             break;
         }
 
-        auto [x, y] = *item;
-        fmt::print("[background] speed x: {}, y: {}\n", x, y);
+        for (auto [x, y] : items) {
+            fmt::print("[background] speed x: {}, y: {}\n", x, y);
+        }
     }
 }
 

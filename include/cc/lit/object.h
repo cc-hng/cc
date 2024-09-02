@@ -114,8 +114,7 @@ struct http_request_t {
         return true;
     }
 
-    static std::tuple<std::string_view, std::string_view>
-    split_target(std::string_view target) {
+    static std::tuple<std::string_view, std::string_view> split_target(std::string_view target) {
         static std::string nullstr = "";
         auto offset                = target.find_first_of('?');
         std::string_view path, query;
@@ -137,14 +136,13 @@ struct http_response_t {
     http_response_t() {
         response.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         response.result(http::status::not_found);
-        response.body() = "Not Found\n";
+        response.body() = "Not Found";
     }
 
     raw_type* operator->() { return &response; }
     const raw_type* operator->() const { return &response; }
 
-    void set_content(std::string_view body,
-                     std::string_view content_type = "application/json") {
+    void set_content(std::string_view body, std::string_view content_type = "application/json") {
         response.result(http::status::ok);
         response.body() = body;
         response.set(http::field::content_type, content_type);

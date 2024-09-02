@@ -1,11 +1,11 @@
 #pragma once
 
 #include <functional>
-#include <regex>
 #include <tuple>
 #include <vector>
 #include <boost/core/noncopyable.hpp>
 #include <cc/lit/object.h>
+#include <re2/re2.h>
 
 namespace cc {
 namespace lit {
@@ -115,7 +115,7 @@ public:
             ParsePath() = default;
 
             void init(std::string_view path, bool whole) {
-                std::string regex                     = "^" + std::string(path);
+                std::string regex                     = std::string(path);
                 std::string_view::size_type start_pos = 0;
                 while (start_pos != std::string_view::npos) {
                     start_pos = regex.find(':', start_pos);
@@ -140,39 +140,37 @@ public:
                         keys_.emplace_back(key_name);
                     }
                 }
-                if (whole) {
-                    regex += "$";
-                }
-                re_ = std::regex(regex);
+                re_ = std::make_shared<re2::RE2>(regex);
             }
 
             std::tuple<bool, kv_t> operator()(std::string_view raw) {
-                std::cmatch cm;
-                auto p = static_cast<const char*>(raw.data());
-                if (!std::regex_match(p, p + raw.size(), cm, re_)) {
-                    return std::make_tuple(false, nullptr);
+                int len = keys_.size();
+                std::vector<std::string> matches(len);
+                std::vector<RE2::Arg> args(len);
+                std::vector<RE2::Arg*> pargs(len);
+                for (int i = 0; i < len; i++) {
+                    args[i]  = &matches[i];
+                    pargs[i] = &args[i];
                 }
-
-                if (cm.size() - 1 != keys_.size()) {
+                if (!RE2::FullMatchN(raw, *re_, pargs.data(), len)) {
                     return std::make_tuple(false, nullptr);
                 }
 
                 auto params = std::make_shared<std::unordered_map<std::string, std::string>>();
-                int i       = 1;
-                for (auto key : keys_) {
-                    params->emplace(std::move(key), cm[i++].str());
+                for (int i = 0; i < len; i++) {
+                    params->emplace(keys_.at(i), std::move(matches.at(i)));
                 }
                 return std::make_tuple(true, params);
             }
 
         private:
-            std::regex re_;
+            std::shared_ptr<re2::RE2> re_;
             std::vector<std::string> keys_;
         };
 
         ParsePath pp;
         pp.init(path, whole);
-        return pp;
+        return std::move(pp);
     }
 
 private:

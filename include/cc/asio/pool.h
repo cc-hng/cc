@@ -74,8 +74,7 @@ public:
     template <typename Fn>
     auto set_interval(int ms, Fn&& f) {
         std::shared_ptr<detail::IntervalTimer> t =
-            std::make_shared<detail::IntervalTimer>(get_io_context(),
-                                                    std::chrono::milliseconds(ms),
+            std::make_shared<detail::IntervalTimer>(get_io_context(), std::chrono::milliseconds(ms),
                                                     std::forward<Fn>(f));
         t->start();
         return t->get_weak_timer();
@@ -85,8 +84,7 @@ public:
     auto set_timeout(int ms, Fn&& f) {
         auto timer = std::make_shared<boost::asio::steady_timer>(ctx_);
         timer->expires_after(std::chrono::milliseconds(ms));
-        std::function handle = [fn = std::forward<Fn>(f),
-                                timer](boost::system::error_code ec) {
+        std::function handle = [fn = std::forward<Fn>(f), timer](boost::system::error_code ec) {
             if (!ec) {
                 fn();
             }

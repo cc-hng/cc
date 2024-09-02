@@ -26,9 +26,8 @@ public:
         } while (0);
 
         using time_point = asio::steady_timer::clock_type::time_point;
-        auto ctx         = co_await asio::this_coro::executor;
         std::shared_ptr<asio::steady_timer> timer =
-            std::make_shared<asio::steady_timer>(ctx);
+            std::make_shared<asio::steady_timer>(co_await asio::this_coro::executor);
         timer->expires_at(time_point::max());
         std::weak_ptr<asio::steady_timer> weak_timer(timer);
         add_handle([weak_timer] {

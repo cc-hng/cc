@@ -15,6 +15,7 @@
 #include <cc/lit/object.h>
 #include <cc/lit/router.h>
 #include <cc/type_traits.h>
+#include <re2/re2.h>
 
 namespace cc {
 namespace lit {
@@ -42,12 +43,12 @@ public:
     struct static_router_t {
         std::string mount_point;
         std::string doc_root;
-        std::regex re;
+        std::shared_ptr<re2::RE2> re;
 
         static_router_t(std::string_view _mount_point, std::string_view _doc_root)
           : mount_point(_mount_point)
           , doc_root(_doc_root)
-          , re("^" + std::string(_mount_point) + "([\\w\\./]+)[?#]?.*$") {}
+          , re(new re2::RE2("^" + std::string(_mount_point) + "([\\w\\./]+)[?#]?.*$")) {}
 
         std::tuple<bool, std::optional<http::message_generator>>
         operator()(const http::request<http::string_body>& req) const {
@@ -57,13 +58,12 @@ public:
             }
 
             auto target = req.target();
-            auto p      = static_cast<const char*>(target.data());
-            std::cmatch cm;
-            if (!std::regex_match(p, p + target.size(), cm, re)) {
+            std::string match;
+            if (!RE2::FullMatch(target, *re, &match)) {
                 return std::make_tuple(false, std::nullopt);
             }
 
-            auto path = path_cat(doc_root, cm[1].str());
+            auto path = path_cat(doc_root, match);
             if (path.back() == '/') {
                 path.append("index.html");
             }

@@ -89,7 +89,7 @@ public:
                 fn();
             }
         };
-        timer->async_wait(handle);
+        timer->async_wait(std::move(handle));
         return std::weak_ptr<boost::asio::steady_timer>(timer);
     }
 

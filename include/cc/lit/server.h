@@ -48,7 +48,7 @@ public:
         static_router_t(std::string_view _mount_point, std::string_view _doc_root)
           : mount_point(_mount_point)
           , doc_root(_doc_root)
-          , re(new re2::RE2("^" + std::string(_mount_point) + "([\\w\\./]+)[?#]?.*$")) {}
+          , re(new re2::RE2(std::string(_mount_point) + "([\\w\\./]+)[?#]?.*")) {}
 
         std::tuple<bool, std::optional<http::message_generator>>
         operator()(const http::request<http::string_body>& req) const {

@@ -7,8 +7,7 @@
 
 static auto get_data(const char* file_name) {
     std::ifstream f(std::string(CC_BENCHMARK_DATA) + "/" + file_name);
-    return std::string((std::istreambuf_iterator<char>(f)),
-                       std::istreambuf_iterator<char>());
+    return std::string((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
 }
 
 static auto parse_canada(std::string json) {
@@ -53,17 +52,41 @@ static void bench_json(bench::Bench& b) {
     auto canada_json  = get_data("canada.json");
     auto citm_json    = get_data("citm_catalog.json");
     auto twitter_json = get_data("twitter.json");
-    auto canada       = parse_canada(canada_json);
+    auto canada_obj   = cc::json::parse<cc::Value>(canada_json);
+    auto citm_obj     = cc::json::parse<cc::Value>(citm_json);
+    auto twitter_obj  = cc::json::parse<cc::Value>(twitter_json);
 
     b.title("yyjson");
-    b.run("canada.json - parse", [&] { parse_canada(canada_json); });
+    auto old = b.epochIterations();
+    b.minEpochIterations(10);
+    // 5007
+    b.run("canada.json - parse", [&] {
+        auto obj = cc::json::parse<cc::Value>(canada_json);
+        bench::doNotOptimizeAway(obj);
+    });
     b.run("canada.json - dump", [&] {
-        auto s = cc::json::dump(canada);
+        auto s = cc::json::dump(canada_obj);
         bench::doNotOptimizeAway(s);
     });
 
-    // b.run("citm_catalog.json", [&] { parse_citm_catalog(citm_json); });
-    // b.run("twitter.json", [&] { parse_twitter(twitter_json); });
+    b.run("citm_catalog.json - parse", [&] {
+        auto obj = cc::json::parse<cc::Value>(citm_json);
+        bench::doNotOptimizeAway(obj);
+    });
+    b.run("citm_catalog.json - dump", [&] {
+        auto s = cc::json::dump(citm_obj);
+        bench::doNotOptimizeAway(s);
+    });
+
+    b.run("twitter.json - parse", [&] {
+        auto obj = cc::json::parse<cc::Value>(twitter_json);
+        bench::doNotOptimizeAway(obj);
+    });
+    b.run("twitter.json - dump", [&] {
+        auto s = cc::json::dump(twitter_obj);
+        bench::doNotOptimizeAway(s);
+    });
+    b.minEpochIterations(old);
 }
 
 BENCHMARK_REGISTE(bench_json);

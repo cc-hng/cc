@@ -1,6 +1,8 @@
 #include <cc/value.h>
 #include <gtest/gtest.h>
 
+#include <iostream>
+
 TEST(value, primitive) {
     cc::Value v;
 
@@ -14,7 +16,8 @@ TEST(value, primitive) {
     EXPECT_TRUE(v.get<std::string_view>() == "hello");
 
     std::vector<int> vi = {1, 2, 3};
-    v.set(vi);
+    auto v2             = vi;
+    v.set(std::move(v2));
     EXPECT_TRUE(vi == v.get<std::vector<int>>());
 
     std::unordered_map<std::string, int> m = {
@@ -36,14 +39,6 @@ TEST(value, tuple) {
     EXPECT_TRUE(t == t2);
 }
 
-TEST(value, shared) {
-    cc::Value v1("hello1");
-    cc::Value v2 = v1;
-    v2.set(3);
-    EXPECT_TRUE(v1.is_int());
-    EXPECT_TRUE(v1.get<int>() == 3);
-}
-
 TEST(value, update) {
     cc::Value v1, v2;
     std::unordered_map<std::string, int> m = {
@@ -60,14 +55,6 @@ TEST(value, update) {
     EXPECT_TRUE(v1.get<int>("a") == 1);
     EXPECT_TRUE(v1.get<int>("b") == 3);
     EXPECT_TRUE(v1["c"].is_null());
-}
-
-TEST(value, deepcopy) {
-    cc::Value v1("hello1");
-    auto v2 = cc::Value::deepcopy(v1);
-    v2.set(3);
-    EXPECT_TRUE(v1.is_string());
-    EXPECT_TRUE(v1.get<std::string>() == "hello1");
 }
 
 TEST(value, merge) {
@@ -87,4 +74,16 @@ TEST(value, merge) {
     v       = cc::Value::merge(v1, v2);
     EXPECT_TRUE(v.get<int>("a") == 4);
     EXPECT_TRUE(v.get<std::string>("b") == "x");
+}
+
+TEST(value, deepequal) {
+    cc::Value v1, v2, v3;
+    v1.set("a.b", 1);
+    v1.set("a.c", 2);
+
+    v2.set("a.b", 1);
+    v2.set("a.c", 2);
+
+    EXPECT_TRUE(v1.deepequal(v2));
+    EXPECT_TRUE(!v1.deepequal(v3));
 }

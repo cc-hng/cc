@@ -257,45 +257,51 @@ template <>
 struct yyjson_convert<cc::Value> {
     static yyjson_mut_val* to_json(yyjson_mut_doc* doc, const cc::Value& rhs) {
         yyjson_mut_val* val = nullptr;
-        rhs.visit([&](const auto& v) {
-            using T = std::decay_t<decltype(v)>;
-            if constexpr (std::is_same_v<T, std::nullptr_t>) {
-                val = yyjson_mut_null(doc);
-            } else if constexpr (std::is_same_v<T, cc::Value::string_t>
-                                 || std::is_same_v<T, cc::Value::array_t>
-                                 || std::is_same_v<T, cc::Value::object_t>) {
-                val = yyjson_convert<typename T::element_type>::to_json(doc, *v);
-            } else {
-                val = yyjson_convert<T>::to_json(doc, v);
-            }
-        });
+        auto t              = rhs.type();
+        switch (t) {
+        case Value::NUL: val = yyjson_mut_null(doc); break;
+        case Value::BOOL: val = yyjson_mut_bool(doc, rhs.get<bool>()); break;
+        case Value::INTEGER: val = yyjson_mut_int(doc, rhs.get<int>()); break;
+        case Value::REAL: val = yyjson_mut_real(doc, rhs.get<double>()); break;
+        case Value::STRING:
+            val = yyjson_convert<std::string_view>::to_json(doc, rhs.get<std::string_view>());
+            break;
+        case Value::ARRAY:
+            val = yyjson_convert<Value::array_t>::to_json(doc, rhs.get<Value::array_t>());
+            break;
+        case Value::OBJECT:
+            val = yyjson_convert<Value::object_t>::to_json(doc, rhs.get<Value::object_t>());
+            break;
+        };
         return val;
     }
 
     static void from_json(yyjson_val* js, cc::Value& rhs) {
-        if (yyjson_is_bool(js)) {
-            rhs = Value(yyjson_get_bool(js));
-        } else if (yyjson_is_int(js)) {
-            rhs = Value(yyjson_get_int(js));
-        } else if (yyjson_is_real(js)) {
-            rhs = Value(yyjson_get_real(js));
-        } else if (yyjson_is_str(js)) {
-            rhs = Value(std::string(yyjson_get_str(js), yyjson_get_len(js)));
-        } else if (yyjson_is_null(js)) {
-            rhs = Value();
-        } else if (yyjson_is_arr(js)) {
-            auto arr = std::make_shared<Value::array_t::element_type>();
-            arr->reserve(yyjson_arr_size(js));
+        auto t = yyjson_get_type(js);
+        switch (t) {
+        case YYJSON_TYPE_NONE:
+        case YYJSON_TYPE_NULL: rhs = Value(); break;
+        case YYJSON_TYPE_BOOL: rhs.set(yyjson_get_bool(js)); break;
+        case YYJSON_TYPE_NUM:
+            if (yyjson_is_int(js)) {
+                rhs.set(yyjson_get_int(js));
+            } else {
+                rhs.set(yyjson_get_real(js));
+            }
+            break;
+        case YYJSON_TYPE_STR: rhs.set(std::string(yyjson_get_str(js), yyjson_get_len(js))); break;
+        case YYJSON_TYPE_ARR: {
+            Value::array_t arr(yyjson_arr_size(js));
             yyjson_val* elem;
             size_t idx, max;
             yyjson_arr_foreach(js, idx, max, elem) {
-                Value val;
-                yyjson_convert<Value>::from_json(elem, val);
-                arr->emplace_back(std::move(val));
+                yyjson_convert<Value>::from_json(elem, arr.at(idx));
             }
-            rhs = Value(arr);
-        } else if (yyjson_is_obj(js)) {
-            auto obj = std::make_shared<Value::object_t::element_type>();
+            rhs.set(std::move(arr));
+            break;
+        }
+        case YYJSON_TYPE_OBJ: {
+            Value::object_t obj(yyjson_obj_size(js));
             yyjson_val* key;
             yyjson_val* val;
             size_t idx, max;
@@ -303,11 +309,12 @@ struct yyjson_convert<cc::Value> {
                 std::string str_key = yyjson_get_str(key);
                 Value value;
                 yyjson_convert<Value>::from_json(val, value);
-                obj->emplace(std::move(str_key), std::move(value));
+                obj.emplace(std::move(str_key), std::move(value));
             }
-            rhs = Value(obj);
-        } else {
-            ASSERT(false, "Unknown json type !!!");
+            rhs.set(std::move(obj));
+            break;
+        }
+        default: ASSERT(false, "Unknown json type !!!");
         }
     }
 };

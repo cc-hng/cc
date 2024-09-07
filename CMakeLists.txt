@@ -77,6 +77,7 @@ include(cmake/FetchGSL.cmake)
 include(cmake/FetchSpdlog.cmake)
 include(cmake/FetchAbsl.cmake)
 include(cmake/FetchRE2.cmake)
+include(cmake/FetchMimalloc.cmake)
 
 if(CC_BUILD_TESTS)
   include(cmake/FetchGTest.cmake)
@@ -135,6 +136,7 @@ target_link_libraries(
             Boost::headers
             Boost::url
             re2
+            mimalloc
             $<$<BOOL:${CC_WITH_YYJSON}>:yyjson>)
 target_compile_definitions(
   3rd_dependencies INTERFACE $<$<BOOL:${CC_WITH_SQLITE3}>:CC_WITH_SQLITE3> $<$<BOOL:${CC_WITH_YYJSON}>:CC_WITH_YYJSON>

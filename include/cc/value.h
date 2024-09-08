@@ -25,34 +25,34 @@ public:
     using object_t = std::unordered_map<std::string, Value>;
     using variant_t =
         std::variant<std::nullptr_t, bool, int, double, std::string, array_t, object_t>;
-    using shared_variant_t = std::shared_ptr<variant_t>;
+    using variant_ptr_t = std::unique_ptr<variant_t>;
 
     // clang-format off
-    Value() : data_(nullptr) {}
-    Value(bool v) : data_(v) {}
-    Value(int v) : data_(v) {}
-    Value(double v) : data_(v) {}
-    Value(const char* v) : data_(std::string(v)) {}
-    Value(const std::string& v) : data_(v) {}
-    Value(std::string&& v) : data_(std::move(v)) {}
-    Value(const array_t& v) : data_(v) {}
-    Value(array_t&& v) : data_(std::move(v)) {}
-    Value(const object_t& v) : data_(v) {}
-    Value(object_t&& v) : data_(std::move(v)) {}
-    Value(const Value& rhs) : data_(rhs.data_) {}
-    Value& operator=(const Value& rhs) { data_ = rhs.data_; return *this; }
-    Value(Value&& rhs) : data_(std::move(rhs.data_)) {}
+    Value() : data_(std::make_unique<variant_t>(nullptr)) {}
+    Value(bool v) : data_(std::make_unique<variant_t>(v)) {}
+    Value(int v) : data_(std::make_unique<variant_t>(v)) {}
+    Value(double v) : data_(std::make_unique<variant_t>(v)) {}
+    Value(const char* v) : data_(std::make_unique<variant_t>(std::string(v))) {}
+    Value(const std::string& v) : data_(std::make_unique<variant_t>(v)) {}
+    Value(std::string&& v) : data_(std::make_unique<variant_t>(std::move(v))) {}
+    Value(const array_t& v) : data_(std::make_unique<variant_t>(v)) {}
+    Value(array_t&& v) : data_(std::make_unique<variant_t>(std::move(v))) {}
+    Value(const object_t& v) : data_(std::make_unique<variant_t>(v)) {}
+    Value(object_t&& v) : data_(std::make_unique<variant_t>(std::move(v))) {}
+    Value(const Value& rhs) : data_(std::make_unique<variant_t>()) { *data_ = *rhs.data_; }
+    Value& operator=(const Value& rhs) { *data_ = *rhs.data_; return *this; }
+    Value(Value&& rhs) : data_(std::move(rhs.data_)) { }
     Value& operator=(Value&& rhs) { data_ = std::move(rhs.data_); return *this; }
     // clang-format on
 
-    inline int type() const { return data_.index(); }
-    inline bool is_null() const { return std::holds_alternative<std::nullptr_t>(data_); }
-    inline bool is_bool() const { return std::holds_alternative<bool>(data_); }
-    inline bool is_integer() const { return std::holds_alternative<int>(data_); }
-    inline bool is_real() const { return std::holds_alternative<double>(data_); }
-    inline bool is_string() const { return std::holds_alternative<std::string>(data_); }
-    inline bool is_array() const { return std::holds_alternative<array_t>(data_); }
-    inline bool is_object() const { return std::holds_alternative<object_t>(data_); }
+    inline int type() const { return data_->index(); }
+    inline bool is_null() const { return std::holds_alternative<std::nullptr_t>(*data_); }
+    inline bool is_bool() const { return std::holds_alternative<bool>(*data_); }
+    inline bool is_integer() const { return std::holds_alternative<int>(*data_); }
+    inline bool is_real() const { return std::holds_alternative<double>(*data_); }
+    inline bool is_string() const { return std::holds_alternative<std::string>(*data_); }
+    inline bool is_array() const { return std::holds_alternative<array_t>(*data_); }
+    inline bool is_object() const { return std::holds_alternative<object_t>(*data_); }
 
     template <typename T>
     std::conditional_t<std::is_same_v<T, array_t> || std::is_same_v<T, object_t>, const T&, T>
@@ -64,13 +64,13 @@ public:
         } else if constexpr (std::is_floating_point_v<T>) {
             return get_real();
         } else if constexpr (std::is_same_v<T, std::string>) {
-            return std::get<std::string>(data_);
+            return std::get<std::string>(*data_);
         } else if constexpr (std::is_same_v<T, std::string_view>) {
             return get_string();
         } else if constexpr (std::is_same_v<T, array_t>) {
-            return std::get<array_t>(data_);  // 返回 const 引用
+            return std::get<array_t>(*data_);  // 返回 const 引用
         } else if constexpr (std::is_same_v<T, object_t>) {
-            return std::get<object_t>(data_);  // 返回 const 引用
+            return std::get<object_t>(*data_);  // 返回 const 引用
         } else if constexpr (boost::hana::Struct<T>::value) {
             return get_struct<T>();
         } else if constexpr (cc::is_tuple_v<T>) {
@@ -96,7 +96,7 @@ public:
             if (!current->is_object()) {
                 throw std::runtime_error("Cannot access non-object Value by key");
             }
-            const auto& obj = std::get<object_t>(current->data_);
+            const auto& obj = std::get<object_t>(*(current->data_));
             auto it         = obj.find(token);
             if (it == obj.end()) {
                 throw std::out_of_range("Key not found in object");
@@ -111,18 +111,18 @@ public:
         using T0 = std::decay_t<T>;
 
         if constexpr (std::is_same_v<T0, bool>) {
-            data_.emplace<bool>(std::forward<T>(value));
+            data_->emplace<bool>(std::forward<T>(value));
         } else if constexpr (std::is_integral_v<T0>) {
-            data_.emplace<int>(std::forward<T>(value));
+            data_->emplace<int>(std::forward<T>(value));
         } else if constexpr (std::is_floating_point_v<T0>) {
-            data_.emplace<double>(std::forward<T>(value));
+            data_->emplace<double>(std::forward<T>(value));
         } else if constexpr (std::is_same_v<T0, const char*> || std::is_same_v<T0, std::string_view>
                              || std::is_same_v<T0, std::string>) {
-            data_.emplace<std::string>(std::string(std::forward<T>(value)));
+            data_->emplace<std::string>(std::string(std::forward<T>(value)));
         } else if constexpr (std::is_same_v<T0, array_t>) {
-            data_.emplace<array_t>(std::forward<T>(value));
+            data_->emplace<array_t>(std::forward<T>(value));
         } else if constexpr (std::is_same_v<T0, object_t>) {
-            data_.emplace<object_t>(std::forward<T>(value));
+            data_->emplace<object_t>(std::forward<T>(value));
         } else if constexpr (boost::hana::Struct<T0>::value) {
             set_struct(std::forward<T>(value));
         } else if constexpr (cc::is_tuple_v<T0>) {
@@ -143,7 +143,7 @@ public:
         if (value[sz - 1] == '\0') {
             sz -= 1;
         }
-        data_.emplace<std::string>(std::string(value, sz));
+        data_->emplace<std::string>(std::string(value, sz));
     }
 
     template <typename T>
@@ -156,7 +156,7 @@ public:
             if (!current->is_object()) {
                 current->set(object_t{});
             }
-            auto& obj = std::get<object_t>(current->data_);
+            auto& obj = std::get<object_t>(*(current->data_));
             current   = &obj[token];
         }
         current->set(std::forward<T>(value));
@@ -164,14 +164,14 @@ public:
 
     template <typename Fn>
     decltype(auto) visit(Fn&& fn) const {
-        return std::visit(std::forward<Fn>(fn), data_);
+        return std::visit(std::forward<Fn>(fn), *data_);
     }
 
     Value& operator[](size_t index) {
         if (!is_array()) {
             set(array_t{});
         }
-        auto& arr = std::get<array_t>(data_);
+        auto& arr = std::get<array_t>(*data_);
         if (index >= arr.size()) {
             arr.resize(index + 1);
         }
@@ -182,7 +182,7 @@ public:
         if (!is_array()) {
             throw std::runtime_error("Cannot access non-array Value by index");
         }
-        const auto& arr = std::get<array_t>(data_);
+        const auto& arr = std::get<array_t>(*data_);
         if (index >= arr.size()) {
             throw std::out_of_range("Array index out of range");
         }
@@ -193,14 +193,14 @@ public:
         if (!is_object()) {
             set(object_t{});
         }
-        return (std::get<object_t>(data_))[key];
+        return (std::get<object_t>(*data_))[key];
     }
 
     const Value& operator[](const std::string& key) const {
         if (!is_object()) {
             throw std::runtime_error("Cannot access non-object Value by key");
         }
-        const auto& obj = std::get<object_t>(data_);
+        const auto& obj = std::get<object_t>(*data_);
         auto it         = obj.find(key);
         if (it == obj.end()) {
             throw std::out_of_range("Key not found in object");
@@ -210,9 +210,9 @@ public:
 
     inline size_t size() const {
         if (is_array()) {
-            return std::get<array_t>(data_).size();
+            return std::get<array_t>(*data_).size();
         } else if (is_object()) {
-            return std::get<object_t>(data_).size();
+            return std::get<object_t>(*data_).size();
         }
         throw std::runtime_error("Cannot get size of non-container value");
     }
@@ -221,7 +221,7 @@ public:
         if (!is_object()) {
             return false;
         }
-        const auto& obj = std::get<object_t>(data_);
+        const auto& obj = std::get<object_t>(*data_);
         return obj.find(std::string(key)) != obj.end();
     }
 
@@ -230,8 +230,8 @@ public:
             throw std::runtime_error("Both Values must be objects to update");
         }
 
-        auto& obj1 = std::get<object_t>(data_);
-        auto& obj2 = std::get<object_t>(other.data_);
+        auto& obj1 = std::get<object_t>(*data_);
+        auto& obj2 = std::get<object_t>(*other.data_);
         for (auto& [k, v] : obj1) {
             if (obj2.count(k)) {
                 auto& v2 = obj2.at(k);
@@ -256,8 +256,8 @@ public:
                 }
             }
         } else if (is_array() && rhs.is_array()) {
-            auto& arr1       = std::get<array_t>(data_);
-            const auto& arr2 = std::get<array_t>(rhs.data_);
+            auto& arr1       = std::get<array_t>(*data_);
+            const auto& arr2 = std::get<array_t>(*rhs.data_);
             for (const auto& value : arr2) {
                 arr1.emplace_back(value);
             }
@@ -282,8 +282,8 @@ public:
         case REAL: return get<double>() == rhs.get<double>();
         case STRING: return get<std::string_view>() == rhs.get<std::string_view>();
         case ARRAY: {
-            const auto& a1 = std::get<array_t>(data_);
-            const auto& a2 = std::get<array_t>(rhs.data_);
+            const auto& a1 = std::get<array_t>(*data_);
+            const auto& a2 = std::get<array_t>(*rhs.data_);
             if (a1.size() != a2.size()) {
                 return false;
             }
@@ -296,8 +296,8 @@ public:
             return true;
         }
         case OBJECT: {
-            const auto& o1 = std::get<object_t>(data_);
-            const auto& o2 = std::get<object_t>(rhs.data_);
+            const auto& o1 = std::get<object_t>(*data_);
+            const auto& o2 = std::get<object_t>(*rhs.data_);
             if (o1.size() != o2.size()) {
                 return false;
             }
@@ -325,10 +325,10 @@ private:
     bool get_bool() const {
         auto t = type();
         switch (t) {
-        case BOOL: return std::get<bool>(data_);
-        case INTEGER: return std::get<int>(data_) != 0;
+        case BOOL: return std::get<bool>(*data_);
+        case INTEGER: return std::get<int>(*data_) != 0;
         case STRING: {
-            const auto& str = std::get<std::string>(data_);
+            const auto& str = std::get<std::string>(*data_);
             return str == "true" || str == "1" || str == "yes" || str == "on";
         }
         default: throw std::runtime_error(make_error(BOOL));
@@ -338,11 +338,11 @@ private:
     int get_integer() const {
         auto t = type();
         switch (t) {
-        case INTEGER: return std::get<int>(data_);
-        case BOOL: return static_cast<int>(std::get<bool>(data_));
-        case REAL: return static_cast<int>(std::get<double>(data_));
+        case INTEGER: return std::get<int>(*data_);
+        case BOOL: return static_cast<int>(std::get<bool>(*data_));
+        case REAL: return static_cast<int>(std::get<double>(*data_));
         case STRING: {
-            const auto& str = std::get<std::string>(data_);
+            const auto& str = std::get<std::string>(*data_);
             return std::stoi(str);
         }
         default: throw std::runtime_error(make_error(INTEGER));
@@ -352,11 +352,11 @@ private:
     double get_real() const {
         auto t = type();
         switch (t) {
-        case INTEGER: return (double)std::get<int>(data_);
-        case BOOL: return static_cast<double>(std::get<bool>(data_));
-        case REAL: return std::get<double>(data_);
+        case INTEGER: return (double)std::get<int>(*data_);
+        case BOOL: return static_cast<double>(std::get<bool>(*data_));
+        case REAL: return std::get<double>(*data_);
         case STRING: {
-            const auto& str = std::get<std::string>(data_);
+            const auto& str = std::get<std::string>(*data_);
             return std::stod(str);
         }
         default: throw std::runtime_error(make_error(REAL));
@@ -367,7 +367,7 @@ private:
         if (!is_string()) {
             throw std::runtime_error(make_error(STRING));
         }
-        const auto& str = std::get<std::string>(data_);
+        const auto& str = std::get<std::string>(*data_);
         return std::string_view(str);
     }
 
@@ -384,7 +384,7 @@ private:
         if (!is_array()) {
             throw std::runtime_error("Cannot convert non-array Value to std::tuple");
         }
-        const auto& arr = std::get<array_t>(data_);
+        const auto& arr = std::get<array_t>(*data_);
         if (std::tuple_size_v<T> != arr.size()) {
             throw std::runtime_error("Tuple size mismatch");
         }
@@ -403,7 +403,7 @@ private:
         if (!is_array()) {
             throw std::runtime_error("Cannot convert non-array Value to std::vector");
         }
-        const auto& arr = std::get<array_t>(data_);
+        const auto& arr = std::get<array_t>(*data_);
         T ret;
         ret.reserve(arr.size());
         for (const auto& elem : arr) {
@@ -417,7 +417,7 @@ private:
         if (!is_object()) {
             throw std::runtime_error("Cannot convert non-object Value to std::unordered_map");
         }
-        const auto& obj = std::get<object_t>(data_);
+        const auto& obj = std::get<object_t>(*data_);
         T ret;
         ret.reserve(obj.size());
         for (const auto& [key, value] : obj) {
@@ -441,7 +441,7 @@ private:
                 obj[keyname].set(member);
             }
         });
-        data_ = std::move(obj);
+        *data_ = std::move(obj);
     }
 
     template <typename T>
@@ -458,7 +458,7 @@ private:
                  ...);
             },
             t);
-        data_ = std::move(arr);
+        *data_ = std::move(arr);
     }
 
     template <typename T>
@@ -470,7 +470,7 @@ private:
             v.set(elem);
             arr.emplace_back(std::move(v));
         }
-        data_ = std::move(arr);
+        *data_ = std::move(arr);
     }
 
     template <typename T>
@@ -479,7 +479,7 @@ private:
         for (const auto& [key, val] : t) {
             obj[key].set(val);
         }
-        data_ = std::move(obj);
+        *data_ = std::move(obj);
     }
 
     inline std::string make_error(type_e expect) const {
@@ -488,7 +488,7 @@ private:
     }
 
 private:
-    variant_t data_;
+    variant_ptr_t data_;
 };
 
 }  // namespace cc

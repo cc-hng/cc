@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <tuple>
+#include <variant>
 #include <vector>
 #include <boost/core/noncopyable.hpp>
 #include <cc/lit/object.h>
@@ -115,6 +116,7 @@ public:
             ParsePath() = default;
 
             void init(std::string_view path, bool whole) {
+                bool is_regex                         = false;
                 std::string regex                     = std::string(path);
                 std::string_view::size_type start_pos = 0;
                 while (start_pos != std::string_view::npos) {
@@ -138,12 +140,20 @@ public:
                             regex.replace(start_pos, end_pos - start_pos, "([^/\\s]+)");
                         }
                         keys_.emplace_back(key_name);
+                        is_regex = true;
                     }
                 }
-                re_ = std::make_shared<re2::RE2>(regex);
+                regex_str_ = regex;
+                if (is_regex) {
+                    re_ = std::make_shared<re2::RE2>(regex);
+                }
             }
 
             std::tuple<bool, kv_t> operator()(std::string_view raw) {
+                if (!re_) {
+                    return std::make_tuple(std::string_view(regex_str_) == raw, nullptr);
+                }
+
                 int len = keys_.size();
                 std::vector<std::string> matches(len);
                 std::vector<RE2::Arg> args(len);
@@ -164,7 +174,8 @@ public:
             }
 
         private:
-            std::shared_ptr<re2::RE2> re_;
+            std::string regex_str_;
+            std::shared_ptr<re2::RE2> re_ = nullptr;
             std::vector<std::string> keys_;
         };
 

@@ -208,6 +208,29 @@ public:
         return it->second;
     }
 
+    void remove(std::string_view key) {
+        std::istringstream iss(key.data());
+        std::string token;
+        Value *current = this, *last = this;
+
+        while (std::getline(iss, token, '.')) {
+            if (!current->is_object()) {
+                return;
+            }
+            auto& obj = std::get<object_t>(*(current->data_));
+            if (obj.find(token) == obj.end()) {
+                return;
+            }
+            last    = current;
+            current = &obj[token];
+        }
+
+        if (last->is_object()) {
+            auto& obj = std::get<object_t>(*(last->data_));
+            obj.erase(token);
+        }
+    }
+
     inline size_t size() const {
         if (is_array()) {
             return std::get<array_t>(*data_).size();
@@ -218,11 +241,21 @@ public:
     }
 
     inline bool contains(std::string_view key) const {
-        if (!is_object()) {
-            return false;
+        std::istringstream iss(key.data());
+        std::string token;
+        const Value* current = this;
+
+        while (std::getline(iss, token, '.')) {
+            if (!current->is_object()) {
+                return false;
+            }
+            const auto& obj = std::get<object_t>(*(current->data_));
+            if (obj.find(token) == obj.end()) {
+                return false;
+            }
+            current = &obj.at(token);
         }
-        const auto& obj = std::get<object_t>(*data_);
-        return obj.find(std::string(key)) != obj.end();
+        return true;
     }
 
     void update(const Value& other) {

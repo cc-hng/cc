@@ -87,3 +87,21 @@ TEST(value, deepequal) {
     EXPECT_TRUE(v1.deepequal(v2));
     EXPECT_TRUE(!v1.deepequal(v3));
 }
+
+#include "cc/json.h"
+
+TEST(value, remove) {
+    cc::Value v;
+    v.set("a.x", 1);
+    v.set("a.y", 1);
+
+    v.set("b", 3);
+
+    v.remove("a.b.c");
+    EXPECT_TRUE(v.contains("a.x") && v.contains("a.y") && v.contains("b"));
+    v.remove("e");
+    v.remove("b");
+    EXPECT_TRUE(v.contains("a.x") && v.contains("a.y") && !v.contains("b"));
+    v.remove("a.x");
+    EXPECT_TRUE(!v.contains("a.x") && v.contains("a.y") && !v.contains("b"));
+}

@@ -478,7 +478,7 @@ private:
             using Member       = std::decay_t<decltype(member)>;
             if constexpr (cc::is_optional<Member>::value) {
                 if (member) {
-                    obj[keyname].template set<typename Member::value_type>(*member);
+                    obj[keyname].set(*member);
                 }
             } else {
                 obj[keyname].set(member);

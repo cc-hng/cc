@@ -82,10 +82,14 @@ TEST(value, deepequal) {
     v1.set("a.c", 2);
 
     v2.set("a.b", 1);
-    v2.set("a.c", 2);
+    v2.set("a.c", "2");
+
+    v3.set("a.b", 1);
+    v3.set("a.c.x", 1);
 
     EXPECT_TRUE(v1.deepequal(v2));
-    EXPECT_TRUE(!v1.deepequal(v3));
+    EXPECT_TRUE(v2.deepequal(v1));
+    EXPECT_TRUE(!v3.deepequal(v1));
 }
 
 #include "cc/json.h"

@@ -303,45 +303,55 @@ public:
     }
 
     bool deepequal(const Value& rhs) const {
-        if (type() != rhs.type()) {
+        try {
+            auto t = type();
+            switch (t) {
+            case NUL: return rhs.is_null();
+            case BOOL: return get<bool>() == rhs.get<bool>();
+            case INTEGER: return get<int>() == rhs.get<int>();
+            case REAL: return get<double>() == rhs.get<double>();
+            case STRING: {
+                auto s1 = get<std::string_view>();
+                auto t2 = rhs.type();
+                switch (t2) {
+                case BOOL: return s1 == std::to_string(rhs.get_bool());
+                case INTEGER: return s1 == std::to_string(rhs.get_integer());
+                case REAL: return s1 == std::to_string(rhs.get_real());
+                case STRING: return s1 == rhs.get_string();
+                default: return false;
+                }
+            }
+            case ARRAY: {
+                const auto& a1 = std::get<array_t>(*data_);
+                const auto& a2 = std::get<array_t>(*rhs.data_);
+                if (a1.size() != a2.size()) {
+                    return false;
+                }
+                int len = a1.size();
+                for (int i = 0; i < len; i++) {
+                    if (!a1.at(i).deepequal(a2.at(i))) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            case OBJECT: {
+                const auto& o1 = std::get<object_t>(*data_);
+                const auto& o2 = std::get<object_t>(*rhs.data_);
+                if (o1.size() != o2.size()) {
+                    return false;
+                }
+                for (const auto& [k, v] : o1) {
+                    if (o2.find(k) == o2.end() || !v.deepequal(o2.at(k))) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            default: return false;
+            }
+        } catch (...) {
             return false;
-        }
-
-        auto t = type();
-        switch (t) {
-        case NUL: return true;
-        case BOOL: return get<bool>() == rhs.get<bool>();
-        case INTEGER: return get<int>() == rhs.get<int>();
-        case REAL: return get<double>() == rhs.get<double>();
-        case STRING: return get<std::string_view>() == rhs.get<std::string_view>();
-        case ARRAY: {
-            const auto& a1 = std::get<array_t>(*data_);
-            const auto& a2 = std::get<array_t>(*rhs.data_);
-            if (a1.size() != a2.size()) {
-                return false;
-            }
-            int len = a1.size();
-            for (int i = 0; i < len; i++) {
-                if (!a1.at(i).deepequal(a2.at(i))) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        case OBJECT: {
-            const auto& o1 = std::get<object_t>(*data_);
-            const auto& o2 = std::get<object_t>(*rhs.data_);
-            if (o1.size() != o2.size()) {
-                return false;
-            }
-            for (const auto& [k, v] : o1) {
-                if (o2.find(k) == o2.end() || !v.deepequal(o2.at(k))) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        default: return false;
         }
     }
 

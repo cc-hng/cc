@@ -136,7 +136,7 @@ target_link_libraries(
             Boost::headers
             Boost::url
             re2
-            mimalloc
+            mimalloc-static
             $<$<BOOL:${CC_WITH_YYJSON}>:yyjson>)
 target_compile_definitions(
   3rd_dependencies INTERFACE $<$<BOOL:${CC_WITH_SQLITE3}>:CC_WITH_SQLITE3> $<$<BOOL:${CC_WITH_YYJSON}>:CC_WITH_YYJSON>

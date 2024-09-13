@@ -12,6 +12,10 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#if __linux__
+#    include <pthread.h>
+#endif
+
 namespace cc {
 
 namespace detail {
@@ -116,10 +120,14 @@ public:
         std::vector<std::thread> threads_;
         threads_.reserve(num - 1);
         for (size_t i = 0; i < num - 1; i++) {
-            threads_.emplace_back([&] { ctx_.run(); });
+            threads_.emplace_back([&, i] {
+                set_threadname(i + 2);
+                ctx_.run();
+            });
         }
 
         // run on current thread
+        set_threadname(1);
         ctx_.run();
 
         for (auto& th : threads_) {
@@ -158,6 +166,15 @@ public:
         });
     }
 #endif
+
+private:
+    static inline void set_threadname(int index) {
+#if __linux__
+        char buf[32] = {0};
+        snprintf(buf, 32, "asio#%d", index);
+        pthread_setname_np(pthread_self(), buf);
+#endif
+    }
 
 private:
     boost::asio::io_context ctx_;

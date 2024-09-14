@@ -3,6 +3,10 @@
 #include <stdexcept>
 #include <boost/core/noncopyable.hpp>
 
+#ifdef __linux__
+#    include <pthread.h>
+#endif
+
 #define CC_CONCAT0(a, b) a##b
 #define CC_CONCAT(a, b)  CC_CONCAT0(a, b)
 #define CC_CALL_OUTSIDE(fn) \
@@ -33,5 +37,11 @@ public:
 private:
     Mutex& mtx_;
 };
+
+inline void set_threadname(const char* name) {
+#ifdef __linux__
+    pthread_setname_np(pthread_self(), name);
+#endif
+}
 
 }  // namespace cc

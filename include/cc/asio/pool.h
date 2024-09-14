@@ -9,12 +9,9 @@
 #include <vector>
 #include <boost/asio.hpp>
 #include <boost/core/noncopyable.hpp>
+#include <cc/util.h>
 #include <stddef.h>
 #include <stdio.h>
-
-#if __linux__
-#    include <pthread.h>
-#endif
 
 namespace cc {
 
@@ -169,11 +166,9 @@ public:
 
 private:
     static inline void set_threadname(int index) {
-#if __linux__
         char buf[32] = {0};
         snprintf(buf, 32, "asio#%d", index);
-        pthread_setname_np(pthread_self(), buf);
-#endif
+        cc::set_threadname((const char*)buf);
     }
 
 private:

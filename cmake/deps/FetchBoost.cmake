@@ -114,6 +114,9 @@ boost_add_submodule(static_string ${BOOST_VERSION} "")
 boost_add_submodule(logic ${BOOST_VERSION} "")
 boost_add_submodule(beast ${BOOST_VERSION} "")
 
+boost_add_submodule(lockfree ${BOOST_VERSION} "")
+boost_add_submodule(parameter ${BOOST_VERSION} "")
+boost_add_submodule(stacktrace ${BOOST_VERSION} "")
 # if(boost_ADDED)
 #   # Bring the populated content into the build
 #   add_subdirectory(${boost_SOURCE_DIR} ${boost_BINARY_DIR})
@@ -122,8 +125,11 @@ boost_add_submodule(beast ${BOOST_VERSION} "")
 if(boost_ADDED)
   file(MAKE_DIRECTORY ${BOOST_ISNTALL_PREFIX})
   execute_process(
-    COMMAND ${CMAKE_COMMAND} -G${CMAKE_GENERATOR} -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${BOOST_ISNTALL_PREFIX} ${boost_SOURCE_DIR}
+    COMMAND
+      ${CMAKE_COMMAND} -G${CMAKE_GENERATOR} -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE} -DCMAKE_BUILD_TYPE=Release
+      -DCMAKE_INSTALL_PREFIX=${BOOST_ISNTALL_PREFIX} ${boost_SOURCE_DIR} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+      -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
+      -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
     WORKING_DIRECTORY ${boost_BINARY_DIR}
     RESULT_VARIABLE configure_result)
   if(configure_result)

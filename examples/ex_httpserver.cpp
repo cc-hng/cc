@@ -19,15 +19,15 @@ public:
     void start() {
         app_.serve_static("/public", "/data/www/html");
 
+        app_.Any("/api/b1", [](const auto& req, auto& resp) {
+            resp.set_content("<p1>hello,world2</p1>", "text/html");
+        });
+
         app_.Get("/api/a",
                  [](const auto& req, auto& resp, const auto& go) -> boost::asio::awaitable<void> {
                      co_await cc::async_sleep(100);
                      co_return resp.set_content("<p1>hello,world</p1>", "text/html");
                  });
-
-        app_.Any("/api/b", [](const auto& req, auto& resp) {
-            resp.set_content("<p1>hello,world2</p1>", "text/html");
-        });
 
         app_.Post("/api/c", [](const auto& req, auto& resp) -> boost::asio::awaitable<void> {
             co_return resp.set_content("<p1>hello,world3</p1>", "text/html");
@@ -62,6 +62,10 @@ public:
             resp.set_content(cc::json::dump(*req.params));
         });
 
+        app_.Any("/api/b2", [](const auto& req, auto& resp) {
+            resp.set_content("<p1>hello,world2</p1>", "text/html");
+        });
+
         app_.start();
     }
 
@@ -87,6 +91,6 @@ int main(int argc, char* argv[]) {
 
     server.start();
 
-    Ap.run(1);
+    Ap.run();
     return 0;
 }

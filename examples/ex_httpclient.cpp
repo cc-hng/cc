@@ -4,7 +4,7 @@
 #include <gsl/gsl>
 
 int main() {
-    auto defer = gsl::finally([] { cc::lit::fetch_pool_release(); });
+    auto defer = gsl::finally([] { cc::lit::fetch_pool_cleanup(); });
     auto& ap   = cc::AsioPool::instance();
 
     ap.co_spawn([]() -> asio::task<void> {

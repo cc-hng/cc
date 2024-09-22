@@ -56,7 +56,7 @@ public:
 
     ~ConnectionPool() = default;
 
-    void release() {
+    void cleanup() {
         std::unique_lock<std::mutex> lock(mtx_);
         connections_ = {};
     }
@@ -242,8 +242,8 @@ http_upload(std::string_view url, const std::vector<multipart_formdata_t>& formd
     co_return co_await http_upload(url, formdata, {}, keepalive);
 }
 
-inline void fetch_pool_release() {
-    detail::ConnectionPool::instance().release();
+inline void fetch_pool_cleanup() {
+    detail::ConnectionPool::instance().cleanup();
 }
 
 }  // namespace lit

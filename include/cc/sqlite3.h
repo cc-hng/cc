@@ -4,6 +4,7 @@
 #    error "Recompile with CC_WITH_SQLITE3"
 #endif
 
+#include <filesystem>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -54,6 +55,11 @@ struct sqlite3_type<std::optional<T>> {
     static std::string get() { return sqlite3_type<T>::get(); }
 };
 
+inline void mk_parent_dir(std::string_view path) {
+    std::filesystem::path fp(path.data());
+    std::filesystem::create_directories(fp.parent_path());
+}
+
 }  // namespace detail
 
 template <typename MutexPolicy = cc::NonMutex, template <typename> class ReadLock = cc::LockGuard,
@@ -75,6 +81,7 @@ public:
             mode |= SQLITE_OPEN_MEMORY;
         } else {
             mode |= SQLITE_OPEN_CREATE;
+            detail::mk_parent_dir(sourcename.data());
         }
         int res = sqlite3_open_v2(sourcename.data(), &conn_, mode, nullptr);
         if (res != SQLITE_OK) {

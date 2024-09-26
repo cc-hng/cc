@@ -1,7 +1,6 @@
+#include <boost/hana.hpp>
 #include <cc/value.h>
 #include <gtest/gtest.h>
-
-#include <iostream>
 
 TEST(value, primitive) {
     cc::Value v;
@@ -36,6 +35,18 @@ TEST(value, tuple) {
     EXPECT_TRUE(v[1].get<std::string>() == "x");
 
     auto t2 = v.get<std::tuple<int, std::string>>();
+    EXPECT_TRUE(t == t2);
+}
+
+TEST(value, tuple_with_value) {
+    auto t = std::make_tuple<cc::Value, cc::Value>(1, true);
+    cc::Value v;
+    v.set(t);
+    EXPECT_TRUE(v[0].get<int>() == 1);
+    EXPECT_TRUE(v[1].get<int>() == 1);
+    EXPECT_TRUE(v[1].get<bool>());
+
+    auto t2 = v.get<std::tuple<cc::Value, cc::Value>>();
     EXPECT_TRUE(t == t2);
 }
 
@@ -92,8 +103,6 @@ TEST(value, deepequal) {
     EXPECT_TRUE(!v3.deepequal(v1));
 }
 
-#include "cc/json.h"
-
 TEST(value, remove) {
     cc::Value v;
     v.set("a.x", 1);
@@ -108,4 +117,21 @@ TEST(value, remove) {
     EXPECT_TRUE(v.contains("a.x") && v.contains("a.y") && !v.contains("b"));
     v.remove("a.x");
     EXPECT_TRUE(!v.contains("a.x") && v.contains("a.y") && !v.contains("b"));
+}
+
+TEST(value, struct) {
+    // clang-format off
+    struct user_t {
+        BOOST_HANA_DEFINE_STRUCT(user_t,
+            (std::string, name),
+            (int, age));
+    };
+    // clang-format on
+
+    user_t usr = {.name = "cc", .age = 18};
+    cc::Value v;
+    v.set(usr);
+
+    user_t usr2 = v.get<user_t>();
+    EXPECT_TRUE(usr.name == usr2.name && usr.age == usr2.age);
 }

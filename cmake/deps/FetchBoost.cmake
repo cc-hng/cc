@@ -3,7 +3,7 @@ set(BOOST_ISNTALL_PREFIX
     CACHE PATH "Boost dependencies path")
 
 message(STATUS "[cc] boost fetching ...")
-set(BOOST_VERSION boost-1.83.0)
+set(BOOST_VERSION boost-1.86.0)
 
 FetchContent_Declare(
   boost
@@ -117,6 +117,11 @@ boost_add_submodule(beast ${BOOST_VERSION} "")
 boost_add_submodule(lockfree ${BOOST_VERSION} "")
 boost_add_submodule(parameter ${BOOST_VERSION} "")
 boost_add_submodule(stacktrace ${BOOST_VERSION} "")
+
+boost_add_submodule(context ${BOOST_VERSION} "")
+boost_add_submodule(scope ${BOOST_VERSION} "")
+boost_add_submodule(coroutine ${BOOST_VERSION} "")
+boost_add_submodule(pool ${BOOST_VERSION} "")
 # if(boost_ADDED)
 #   # Bring the populated content into the build
 #   add_subdirectory(${boost_SOURCE_DIR} ${boost_BINARY_DIR})

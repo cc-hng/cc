@@ -55,7 +55,9 @@ public:
     inline bool is_object() const { return std::holds_alternative<object_t>(*data_); }
 
     template <typename T>
-    std::conditional_t<std::is_same_v<T, array_t> || std::is_same_v<T, object_t>, const T&, T>
+    std::conditional_t<std::is_same_v<T, array_t> || std::is_same_v<T, object_t>
+                           || std::is_same_v<T, Value>,
+                       const T&, T>
     get() const {
         if constexpr (std::is_same_v<T, bool>) {
             return get_bool();
@@ -71,6 +73,8 @@ public:
             return std::get<array_t>(*data_);  // 返回 const 引用
         } else if constexpr (std::is_same_v<T, object_t>) {
             return std::get<object_t>(*data_);  // 返回 const 引用
+        } else if constexpr (std::is_same_v<T, Value>) {
+            return *this;  // 返回 const 引用
         } else if constexpr (boost::hana::Struct<T>::value) {
             return get_struct<T>();
         } else if constexpr (cc::is_tuple_v<T>) {
@@ -86,7 +90,9 @@ public:
     }
 
     template <typename T>
-    std::conditional_t<std::is_same_v<T, array_t> || std::is_same_v<T, object_t>, const T&, T>
+    std::conditional_t<std::is_same_v<T, array_t> || std::is_same_v<T, object_t>
+                           || std::is_same_v<T, Value>,
+                       const T&, T>
     get(std::string_view key) const {
         std::istringstream iss(key.data());
         std::string token;
@@ -131,6 +137,8 @@ public:
             set_vector(std::forward<T>(value));
         } else if constexpr (cc::is_unordered_map_v<T0>) {
             set_object(std::forward<T>(value));
+        } else if constexpr (std::is_same_v<T0, Value>) {
+            *this = std::forward<T>(value);
         } else {
             throw std::runtime_error("Unsupported type for set: "
                                      + boost::core::demangle(typeid(T).name()));
@@ -355,14 +363,16 @@ public:
         }
     }
 
+    inline bool operator==(const Value& rhs) const { return deepequal(rhs); }
+
 public:
-    static Value merge(const Value& v1, const Value& v2) {
+    static inline Value merge(const Value& v1, const Value& v2) {
         Value result = v1;
         result.merge(v2);
         return result;
     }
 
-    static bool deepequal(const Value& v1, const Value& v2) { return v1.deepequal(v2); }
+    static inline bool deepequal(const Value& v1, const Value& v2) { return v1.deepequal(v2); }
 
 private:
     bool get_bool() const {
@@ -419,7 +429,24 @@ private:
         if (!is_object()) {
             throw std::runtime_error(make_error(OBJECT));
         }
-        return T{};
+        T ret;
+        const auto& obj = std::get<object_t>(*data_);
+        hana::for_each(hana::keys(ret), [&](const auto& key) {
+            auto keyname = hana::to<char const*>(key);
+            auto& member = hana::at_key(ret, key);
+            using Member = std::remove_reference_t<decltype(member)>;
+            auto it      = obj.find(keyname);
+            if (it != obj.end()) {
+                if constexpr (cc::is_optional<Member>::value) {
+                    member = it->second.template get<typename Member::value_type>();
+                } else {
+                    member = it->second.template get<Member>();
+                }
+            } else if constexpr (!cc::is_optional<Member>::value) {
+                throw std::runtime_error(std::string("Required key not found: ") + keyname);
+            }
+        });
+        return ret;
     }
 
     template <typename T>

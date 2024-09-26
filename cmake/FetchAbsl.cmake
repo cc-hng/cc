@@ -1,5 +1,6 @@
 message(STATUS "[cc] absl fetching ...")
 
+set(ABSL_PROPAGATE_CXX_STD ON)
 set(ABSL_ENABLE_INSTALL ON)
 
 FetchContent_Declare(

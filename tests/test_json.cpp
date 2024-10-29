@@ -48,8 +48,7 @@ TEST(yyjson, map_key_mem) {
             {"cc",   32},
             {"alan", 64},
         };
-        auto root =
-            cc::json::detail::yyjson_convert<decltype(persons)>::to_json(doc, persons);
+        auto root = cc::json::detail::yyjson_convert<decltype(persons)>::to_json(doc, persons);
         yyjson_mut_doc_set_root(doc, root);
     }
 
@@ -61,7 +60,7 @@ TEST(yyjson, map_key_mem) {
 }
 
 TEST(yyjson, yyjson_val) {
-    cc::json::JsonParser parser(car_json);
+    cc::json::JsonParser parser(car_json, false);
 
     auto root = parser.parse<yyjson_val*>();
     EXPECT_TRUE(yyjson_is_obj(root));

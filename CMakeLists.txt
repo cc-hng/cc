@@ -32,16 +32,16 @@ if(CC_ENABLE_IO_URING AND LINUX)
     include(CheckCXXSourceRuns)
     check_cxx_source_runs(
       "
-      #include <linux/io_uring.h>
-      #include <sys/syscall.h>
-      #include <unistd.h>
-      #include <cstdlib>
+        #include <linux/io_uring.h>
+        #include <sys/syscall.h>
+        #include <unistd.h>
+        #include <cstdlib>
 
-      int main() {
-        io_uring_params a = {};
-        return syscall(__NR_io_uring_setup, 1, &a) != -1 ? EXIT_SUCCESS : EXIT_FAILURE;
-      }
-    "
+        int main() {
+          io_uring_params a = {};
+          return syscall(__NR_io_uring_setup, 1, &a) != -1 ? EXIT_SUCCESS : EXIT_FAILURE;
+        }
+      "
       CC_HAS_IO_URING)
   endif()
 

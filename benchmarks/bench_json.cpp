@@ -36,4 +36,28 @@ static void bench_json(bench::Bench& b) {
 
 BENCHMARK_REGISTE(bench_json);
 
+#    include <nlohmann/json.hpp>
+
+#    define BENCH_JSON_FILE_BY_NLOHMANN(name)                  \
+        auto name##_json = get_data(#name ".json");            \
+        auto name##_obj  = nlohmann::json::parse(name##_json); \
+                                                               \
+        b.run(#name " - parse", [&] {                          \
+            auto obj = nlohmann::json::parse(name##_json);     \
+            bench::doNotOptimizeAway(obj);                     \
+        });                                                    \
+                                                               \
+        b.run(#name " - dump", [&] {                           \
+            auto s = (name##_obj).dump();                      \
+            bench::doNotOptimizeAway(s);                       \
+        })
+
+static void bench_nlohmann(bench::Bench& b) {
+    b.title("nlohmann");
+    BENCH_JSON_FILE_BY_NLOHMANN(twitter);
+    BENCH_JSON_FILE_BY_NLOHMANN(canada);
+    BENCH_JSON_FILE_BY_NLOHMANN(citm_catalog);
+}
+BENCHMARK_REGISTE(bench_nlohmann);
+
 #endif

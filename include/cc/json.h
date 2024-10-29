@@ -366,8 +366,9 @@ T convert(yyjson_val* val) {
 
 class JsonParser {
 public:
-    JsonParser(std::string_view jstr) {
-        doc_ = yyjson_read(jstr.data(), jstr.size(), 0);
+    JsonParser(std::string_view jstr, bool allow_comments) {
+        doc_ =
+            yyjson_read(jstr.data(), jstr.size(), allow_comments ? YYJSON_READ_ALLOW_COMMENTS : 0);
         ASSERT(doc_, "Parse error");
         root_ = yyjson_doc_get_root(doc_);
     }
@@ -390,8 +391,8 @@ private:
 };
 
 template <typename T>
-T parse(std::string_view jstr) {
-    JsonParser parser(jstr);
+T parse(std::string_view jstr, bool allow_comments = false) {
+    JsonParser parser(jstr, allow_comments);
     return parser.parse<T>();
 }
 

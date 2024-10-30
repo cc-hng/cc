@@ -68,7 +68,7 @@ struct http_request_t {
 
     raw_type request;
     std::string_view path;
-    mutable kv_t querys;
+    mutable kv_t queries;
     mutable kv_t params;
 
     raw_type* operator->() { return &request; }
@@ -109,7 +109,7 @@ struct http_request_t {
                 left -= len + 1;
             }
 
-            querys = std::make_shared<typename kv_t::element_type>(std::move(out));
+            queries = std::make_shared<typename kv_t::element_type>(std::move(out));
         }
         return true;
     }

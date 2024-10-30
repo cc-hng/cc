@@ -37,8 +37,8 @@ public:
         app_.Post("/api/f", cc::lit::make_route(&HttpServer::api_f, this));
 
         app_.Get("/api/param", [](const auto& req, auto& resp) {
-            if (req.querys) {
-                resp.set_content(cc::json::dump(*req.querys));
+            if (req.queries) {
+                resp.set_content(cc::json::dump(*req.queries));
             }
         });
 

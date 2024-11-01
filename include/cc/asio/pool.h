@@ -56,6 +56,9 @@ class AsioPool final : boost::noncopyable {
     using work_guard_t = boost::asio::executor_work_guard<executor_t>;
 
 public:
+    using timer_t = std::weak_ptr<boost::asio::steady_timer>;
+
+public:
     static AsioPool& instance() {
         static AsioPool ap;
         return ap;
@@ -91,18 +94,16 @@ public:
             }
         };
         timer->async_wait(std::move(handle));
-        return std::weak_ptr<boost::asio::steady_timer>(timer);
+        return timer_t(timer);
     }
 
-    inline void clear_timeout(std::weak_ptr<boost::asio::steady_timer> timer) const {
+    inline void clear_timeout(timer_t timer) const {
         if (auto raw = timer.lock()) {
             raw->cancel();
         }
     }
 
-    inline void clear_interval(std::weak_ptr<boost::asio::steady_timer> timer) const {
-        clear_timeout(timer);
-    }
+    inline void clear_interval(timer_t timer) const { clear_timeout(timer); }
 
     void run(int num = std::thread::hardware_concurrency(), bool with_guard = false) {
         if (stopped_.load(std::memory_order_relaxed)) {

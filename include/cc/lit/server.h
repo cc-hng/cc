@@ -297,7 +297,13 @@ private:
                 // Read a request
                 http_request_t req;
                 http_response_t resp;
-                co_await http::async_read(*stream, buffer, req.request);
+
+                http::request_parser<http::string_body> req_parser;
+                if (option_.body_limit > 0) {
+                    req_parser.body_limit(option_.body_limit);
+                }
+                co_await http::async_read(*stream, buffer, req_parser);
+                req.request = req_parser.release();
 
                 if (!req.handle()) {
                     resp->keep_alive(req->keep_alive());

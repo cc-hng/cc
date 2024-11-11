@@ -13,7 +13,6 @@
 #include <boost/hana.hpp>
 #include <cc/type_traits.h>
 #include <cc/util.h>
-#include <fmt/format.h>
 #include <sqlite3.h>
 #include <stdint.h>
 
@@ -132,81 +131,6 @@ public:
     template <typename R = void, typename... Args>
     std::enable_if_t<std::is_void_v<R>> unsafe_execute(std::string_view stmt, Args&&... args) {
         return execute_impl<void>(stmt, std::forward<Args>(args)...);
-    }
-
-    // fake orm
-    template <typename T, typename = hana::when<hana::Struct<T>::value>>
-    void
-    create_table(std::string_view tbl_name, std::vector<std::vector<std::string>> indexes = {}) {
-        std::vector<std::string> stmts;
-        std::string stmt;
-        std::string seq;
-        std::vector<std::string> parts;
-        bool create_at = false;
-        bool update_at = false;
-
-        parts.emplace_back();
-
-        stmt = fmt::format("CREATE TABLE IF NOT EXISTS {} (", tbl_name);
-        stmt += seq;
-        stmt += "\n  id INTEGER PRIMARY KEY AUTOINCREMENT";
-        seq = ",";
-
-        hana::for_each(T{}, [&](const auto& pair) {
-            auto key           = hana::to<char const*>(hana::first(pair));
-            const auto& member = hana::second(pair);
-            using Member       = std::decay_t<decltype(member)>;
-
-            std::string type     = detail::sqlite3_type<Member>::get();
-            std::string not_null = cc::is_optional_v<Member> ? "" : " NOT NULL";
-
-            stmt += seq;
-            stmt += fmt::format("\n  {} {}{}", key, type, not_null);
-
-            if (std::string_view(key) == "created_at") {
-                create_at = true;
-            }
-            if (std::string_view(key) == "updated_at") {
-                update_at = true;
-            }
-        });
-
-        if (!create_at) {
-            stmt += seq;
-            stmt += "\n  created_at TIMESTAMP DEFAULT (unixepoch('now'))";
-        }
-
-        if (!update_at) {
-            stmt += seq;
-            stmt += "\n  updated_at TIMESTAMP DEFAULT (unixepoch('now'))";
-        }
-
-        stmt += "\n);";
-        stmts.emplace_back((std::string&&)stmt);
-
-        // auto update
-        stmt = fmt::format(R"(CREATE TRIGGER IF NOT EXISTS {}_updated_at_trigger AFTER UPDATE ON {}
-BEGIN
-  UPDATE user SET updated_at = unixepoch('now') WHERE id == NEW.id;
-END;)",
-                           tbl_name, tbl_name);
-        stmts.emplace_back((std::string&&)stmt);
-
-        // index
-        for (const auto& idx : indexes) {
-            stmt = fmt::format("CREATE INDEX IF NOT EXISTS {}_{}_idx ON {}({});", tbl_name,
-                               fmt::join(idx, "_"), tbl_name, fmt::join(idx, ","));
-            stmts.emplace_back((std::string&&)stmt);
-        }
-
-        for (auto& s : stmts) {
-            fprintf(stderr, "--------------- \n%s\n", s.c_str());
-        }
-    }
-
-    template <typename T, typename = hana::when<hana::Struct<T>::value>>
-    void create_table(std::string_view tbl, std::string_view column) {
-        create_table<T>(tbl, {{std::string(column)}});
     }
 
 private:

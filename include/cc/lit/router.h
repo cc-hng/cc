@@ -6,6 +6,7 @@
 #include <vector>
 #include <boost/core/noncopyable.hpp>
 #include <cc/lit/object.h>
+#include <gsl/gsl>
 #include <re2/re2.h>
 
 namespace cc {
@@ -76,7 +77,7 @@ public:
 private:
     boost::asio::awaitable<void> run_impl(int idx, const request_type& req, response_type& resp,
                                           const http_next_handle_t& go = nullptr) {
-        if (idx >= handlers_.size()) {
+        if (GSL_UNLIKELY(idx >= handlers_.size())) {
             if (go) {
                 co_await go();
             }
@@ -96,7 +97,7 @@ private:
             resp->body() = e.what();
         }
 
-        if (throw_exception) {
+        if (GSL_UNLIKELY(throw_exception)) {
             co_await next();
         }
     }
@@ -127,7 +128,7 @@ public:
                         const auto end_pos       = std::min(slash_end_pos, next_end_pos);
                         const auto key_name = regex.substr(start_pos + 1, end_pos - start_pos - 1);
 
-                        if (key_name.empty()) {
+                        if (GSL_UNLIKELY(key_name.empty())) {
                             throw std::runtime_error(std::string("Empty parameter name "
                                                                  "found "
                                                                  "in path: ")

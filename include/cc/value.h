@@ -13,6 +13,7 @@
 #include <boost/core/demangle.hpp>
 #include <boost/hana.hpp>
 #include <cc/type_traits.h>
+#include <gsl/gsl>
 
 namespace cc {
 
@@ -43,6 +44,7 @@ public:
     Value& operator=(const Value& rhs) { *data_ = *rhs.data_; return *this; }
     Value(Value&& rhs) : data_(std::move(rhs.data_)) { }
     Value& operator=(Value&& rhs) { data_ = std::move(rhs.data_); return *this; }
+    ~Value() {}
     // clang-format on
 
     inline int type() const { return data_->index(); }
@@ -99,12 +101,12 @@ public:
         const Value* current = this;
 
         while (std::getline(iss, token, '.')) {
-            if (!current->is_object()) {
+            if (GSL_UNLIKELY(!current->is_object())) {
                 throw std::runtime_error("Cannot access non-object Value by key");
             }
             const auto& obj = std::get<object_t>(*(current->data_));
             auto it         = obj.find(token);
-            if (it == obj.end()) {
+            if (GSL_UNLIKELY(it == obj.end())) {
                 throw std::out_of_range("Key not found in object");
             }
             current = &it->second;
@@ -187,11 +189,11 @@ public:
     }
 
     const Value& operator[](size_t index) const {
-        if (!is_array()) {
+        if (GSL_UNLIKELY(!is_array())) {
             throw std::runtime_error("Cannot access non-array Value by index");
         }
         const auto& arr = std::get<array_t>(*data_);
-        if (index >= arr.size()) {
+        if (GSL_UNLIKELY(index >= arr.size())) {
             throw std::out_of_range("Array index out of range");
         }
         return arr[index];
@@ -205,12 +207,12 @@ public:
     }
 
     const Value& operator[](const std::string& key) const {
-        if (!is_object()) {
+        if (GSL_UNLIKELY(!is_object())) {
             throw std::runtime_error("Cannot access non-object Value by key");
         }
         const auto& obj = std::get<object_t>(*data_);
         auto it         = obj.find(key);
-        if (it == obj.end()) {
+        if (GSL_UNLIKELY(it == obj.end())) {
             throw std::out_of_range("Key not found in object");
         }
         return it->second;
@@ -267,7 +269,7 @@ public:
     }
 
     void update(const Value& other) {
-        if (!is_object() || !other.is_object()) {
+        if (GSL_UNLIKELY(!is_object() || !other.is_object())) {
             throw std::runtime_error("Both Values must be objects to update");
         }
 
@@ -417,7 +419,7 @@ private:
     }
 
     std::string_view get_string() const {
-        if (!is_string()) {
+        if (GSL_UNLIKELY(!is_string())) {
             throw std::runtime_error(make_error(STRING));
         }
         const auto& str = std::get<std::string>(*data_);
@@ -426,7 +428,7 @@ private:
 
     template <typename T, typename = hana::when<hana::Struct<T>::value>>
     T get_struct() const {
-        if (!is_object()) {
+        if (GSL_UNLIKELY(!is_object())) {
             throw std::runtime_error(make_error(OBJECT));
         }
         T ret;
@@ -451,11 +453,11 @@ private:
 
     template <typename T>
     T get_tuple() const {
-        if (!is_array()) {
+        if (GSL_UNLIKELY(!is_array())) {
             throw std::runtime_error("Cannot convert non-array Value to std::tuple");
         }
         const auto& arr = std::get<array_t>(*data_);
-        if (std::tuple_size_v<T> != arr.size()) {
+        if (GSL_UNLIKELY(std::tuple_size_v<T> != arr.size())) {
             throw std::runtime_error("Tuple size mismatch");
         }
         T t;
@@ -470,7 +472,7 @@ private:
 
     template <typename T>
     T get_vector() const {
-        if (!is_array()) {
+        if (GSL_UNLIKELY(!is_array())) {
             throw std::runtime_error("Cannot convert non-array Value to std::vector");
         }
         const auto& arr = std::get<array_t>(*data_);
@@ -484,7 +486,7 @@ private:
 
     template <typename T>
     T get_object() const {
-        if (!is_object()) {
+        if (GSL_UNLIKELY(!is_object())) {
             throw std::runtime_error("Cannot convert non-object Value to std::unordered_map");
         }
         const auto& obj = std::get<object_t>(*data_);

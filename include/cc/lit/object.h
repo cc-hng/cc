@@ -71,8 +71,8 @@ struct http_request_t {
     mutable kv_t queries;
     mutable kv_t params;
 
-    raw_type* operator->() { return &request; }
-    const raw_type* operator->() const { return &request; }
+    inline raw_type* operator->() { return &request; }
+    inline const raw_type* operator->() const { return &request; }
 
     bool handle() {
         auto [path, query] = split_target(request.target());
@@ -139,10 +139,11 @@ struct http_response_t {
         response.body() = "Not Found";
     }
 
-    raw_type* operator->() { return &response; }
-    const raw_type* operator->() const { return &response; }
+    inline raw_type* operator->() { return &response; }
+    inline const raw_type* operator->() const { return &response; }
 
-    void set_content(std::string_view body, std::string_view content_type = "application/json") {
+    inline void
+    set_content(std::string_view body, std::string_view content_type = "application/json") {
         response.result(http::status::ok);
         response.body() = body;
         response.set(http::field::content_type, content_type);

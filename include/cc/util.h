@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 #include <boost/core/noncopyable.hpp>
+#include <gsl/gsl>
 
 #ifdef __linux__
 #    include <pthread.h>
@@ -14,7 +15,7 @@
 
 #define ASSERT(cond, msg)                  \
     do {                                   \
-        if (!(cond)) {                     \
+        if (GSL_UNLIKELY(!(cond))) {       \
             throw std::runtime_error(msg); \
         }                                  \
     } while (0)

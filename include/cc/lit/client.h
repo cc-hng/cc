@@ -12,6 +12,7 @@
 #include <boost/url.hpp>
 #include <cc/lit/multipart_parser.h>
 #include <fmt/core.h>
+#include <gsl/gsl>
 
 namespace cc {
 namespace lit {
@@ -133,7 +134,7 @@ fetch(std::string_view url, const fetch_option_t options = {}) {
                 port = "443";
             }
         }
-        if (port.empty()) {
+        if (GSL_UNLIKELY(port.empty())) {
             throw std::runtime_error("unknown port");
         }
 

@@ -12,6 +12,7 @@
 #include <tuple>
 #include <unordered_map>
 #include <vector>
+#include <boost/core/noncopyable.hpp>
 #include <boost/hana.hpp>
 #include <cc/util.h>
 #include <cc/value.h>
@@ -364,7 +365,7 @@ T convert(yyjson_val* val) {
     return ret;
 }
 
-class JsonParser {
+class JsonParser : boost::noncopyable {
 public:
     JsonParser(std::string_view jstr, bool allow_comments) {
         doc_ =

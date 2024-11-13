@@ -9,12 +9,14 @@
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 #include <boost/callable_traits.hpp>
+#include <boost/core/noncopyable.hpp>
 #include <cc/asio/semaphore.h>
 #include <cc/lit/middleware.h>
 #include <cc/lit/mime_types.h>
 #include <cc/lit/object.h>
 #include <cc/lit/router.h>
 #include <cc/type_traits.h>
+#include <gsl/gsl>
 #include <re2/re2.h>
 
 namespace cc {
@@ -22,22 +24,22 @@ namespace lit {
 
 namespace detail {
 // Return a reasonable mime type based on the extension of a file.
-inline beast::string_view get_mime_type(beast::string_view path) {
-    using beast::iequals;
-    auto const ext = [&path] {
+inline std::string_view get_mime_type(std::string_view path) {
+    static auto get_ext = [](std::string_view path) {
         auto const pos = path.rfind(".");
-        if (pos == beast::string_view::npos) return beast::string_view{};
+        if (GSL_UNLIKELY(pos == std::string_view::npos)) return std::string_view{};
         return path.substr(pos);
-    }();
-    return cc::lit::get_mime_type(ext);
+    };
+    return cc::lit::get_mime_type(get_ext(path));
 }
 }  // namespace detail
 
-class App {
+class App final : boost::noncopyable {
 public:
     struct options_t {
-        int timeout;
-        int body_limit;
+        int timeout    = 30;
+        int backlog    = 128;
+        int body_limit = -1;
     };
 
     struct static_router_t {
@@ -53,13 +55,13 @@ public:
         std::tuple<bool, std::optional<http::message_generator>>
         operator()(const http::request<http::string_body>& req) const {
             auto method = req.method();
-            if (method != http::verb::head && method != http::verb::get) {
+            if (GSL_UNLIKELY(method != http::verb::head && method != http::verb::get)) {
                 return std::make_tuple(false, std::nullopt);
             }
 
             auto target = req.target();
             std::string match;
-            if (!RE2::FullMatch(target, *re, &match)) {
+            if (GSL_UNLIKELY(!RE2::FullMatch(target, *re, &match))) {
                 return std::make_tuple(false, std::nullopt);
             }
 
@@ -76,7 +78,7 @@ public:
             }
 
             std::optional<http::message_generator> msg;
-            if (ec) {
+            if (GSL_UNLIKELY(ec)) {
                 http::response<http::string_body> resp{http::status::internal_server_error,
                                                        req.version()};
                 resp.set(http::field::server, BOOST_BEAST_VERSION_STRING);
@@ -91,7 +93,7 @@ public:
             auto const size = body.size();
 
             // Respond to HEAD request
-            if (method == http::verb::head) {
+            if (GSL_UNLIKELY(method == http::verb::head)) {
                 http::response<http::empty_body> resp{http::status::ok, req.version()};
                 resp.set(http::field::server, BOOST_BEAST_VERSION_STRING);
                 resp.set(http::field::content_type, detail::get_mime_type(path));
@@ -135,7 +137,7 @@ public:
 
 public:
     App(boost::asio::io_context& ioc, std::string_view ip, unsigned short port,
-        options_t options = {30, -1})
+        options_t options = {30, 128, -1})
       : ioc_(ioc)
       , ip_(ip)
       , port_(port)
@@ -268,7 +270,7 @@ private:
 
         // Start listening for connections
         // const auto backlog = asio::socket_base::max_listen_connections;
-        const auto backlog = 128;
+        const auto backlog = option_.backlog;
         acceptor.listen(asio::socket_base::max_listen_connections);
         Semaphore<std::mutex> sem(backlog);
 
@@ -305,12 +307,12 @@ private:
                 co_await http::async_read(*stream, buffer, req_parser);
                 req.request = req_parser.release();
 
-                if (!req.handle()) {
+                if (GSL_UNLIKELY(!req.handle())) {
                     resp->keep_alive(req->keep_alive());
                     resp->result(http::status::bad_request);
                     resp->body() = "Illegal request-target\n";
                 } else {
-                    if (beast::websocket::is_upgrade(req.request)) {
+                    if (GSL_UNLIKELY(beast::websocket::is_upgrade(req.request))) {
                         resp->keep_alive(req->keep_alive());
                         for (const auto& f : ws_router_) {
                             if (co_await f(req, stream)) {

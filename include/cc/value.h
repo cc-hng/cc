@@ -102,12 +102,13 @@ public:
 
         while (std::getline(iss, token, '.')) {
             if (GSL_UNLIKELY(!current->is_object())) {
-                throw std::runtime_error("Cannot access non-object Value by key");
+                throw std::runtime_error("Cannot access non-object Value by key. key="
+                                         + std::string(key));
             }
             const auto& obj = std::get<object_t>(*(current->data_));
             auto it         = obj.find(token);
             if (GSL_UNLIKELY(it == obj.end())) {
-                throw std::out_of_range("Key not found in object");
+                throw std::out_of_range("Key not found in object. key=" + std::string(key));
             }
             current = &it->second;
         }
@@ -190,11 +191,12 @@ public:
 
     const Value& operator[](size_t index) const {
         if (GSL_UNLIKELY(!is_array())) {
-            throw std::runtime_error("Cannot access non-array Value by index");
+            throw std::runtime_error("Cannot access non-array Value by index. index="
+                                     + std::to_string(index));
         }
         const auto& arr = std::get<array_t>(*data_);
         if (GSL_UNLIKELY(index >= arr.size())) {
-            throw std::out_of_range("Array index out of range");
+            throw std::out_of_range("Array index out of range. index=" + std::to_string(index));
         }
         return arr[index];
     }
@@ -208,12 +210,12 @@ public:
 
     const Value& operator[](const std::string& key) const {
         if (GSL_UNLIKELY(!is_object())) {
-            throw std::runtime_error("Cannot access non-object Value by key");
+            throw std::runtime_error("Cannot access non-object Value by key. key=" + key);
         }
         const auto& obj = std::get<object_t>(*data_);
         auto it         = obj.find(key);
         if (GSL_UNLIKELY(it == obj.end())) {
-            throw std::out_of_range("Key not found in object");
+            throw std::out_of_range("Key not found in object. key=" + key);
         }
         return it->second;
     }

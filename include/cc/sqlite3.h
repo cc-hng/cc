@@ -13,6 +13,7 @@
 #include <boost/hana.hpp>
 #include <cc/type_traits.h>
 #include <cc/util.h>
+#include <gsl/gsl>
 #include <sqlite3.h>
 #include <stdint.h>
 
@@ -71,19 +72,19 @@ public:
 
     void open(std::string_view sourcename, int timeout = -1) {
         WriteLock<MutexPolicy> _lck(mtx_);
-        if (conn_) {
+        if (GSL_UNLIKELY(conn_)) {
             throw std::runtime_error("sqlite3 already opened !!!");
         }
 
         int mode = SQLITE_OPEN_READWRITE;
-        if (sourcename == ":memory:") {
+        if (GSL_UNLIKELY(sourcename == ":memory:")) {
             mode |= SQLITE_OPEN_MEMORY;
         } else {
             mode |= SQLITE_OPEN_CREATE;
             detail::mk_parent_dir(sourcename.data());
         }
         int res = sqlite3_open_v2(sourcename.data(), &conn_, mode, nullptr);
-        if (res != SQLITE_OK) {
+        if (GSL_UNLIKELY(res != SQLITE_OK)) {
             auto errmsg = sqlite3_errmsg(conn_);
             sqlite3_close_v2(conn_);
             conn_ = nullptr;
@@ -215,7 +216,7 @@ private:
         check_conn();
 
         res = sqlite3_prepare_v3(conn_, stmt.data(), -1, 0, &vm, &tail);
-        if (res != SQLITE_OK) {
+        if (GSL_UNLIKELY(res != SQLITE_OK)) {
             throw_except("sqlite3_prepare_v3");
         }
 
@@ -237,7 +238,7 @@ private:
                 ret.emplace_back((R&&)e);
             }
 
-            if (res != SQLITE_DONE) {
+            if (GSL_UNLIKELY(res != SQLITE_DONE)) {
                 throw_except("execute");
             }
 
@@ -265,7 +266,7 @@ private:
                 ret.emplace_back((R&&)e);
             }
 
-            if (res != SQLITE_DONE) {
+            if (GSL_UNLIKELY(res != SQLITE_DONE)) {
                 throw_except("execute");
             }
 
@@ -275,7 +276,7 @@ private:
             while ((res = sqlite3_step(vm)) == SQLITE_ROW) {
             }
 
-            if (res != SQLITE_DONE) {
+            if (GSL_UNLIKELY(res != SQLITE_DONE)) {
                 throw_except("execute");
             }
 
@@ -287,18 +288,18 @@ private:
 
     inline void check_conn() {
         // ReadLock<MutexPolicy> _lck(mtx_);
-        if (!conn_) {
+        if (GSL_UNLIKELY(!conn_)) {
             throw std::runtime_error("Expect connection !!!");
         }
     }
 
     inline void throw_except(std::string_view what = "") {
-        if (!conn_) {
+        if (GSL_UNLIKELY(!conn_)) {
             return;
         }
 
         std::string msg;
-        if (what.empty()) {
+        if (GSL_UNLIKELY(what.empty())) {
             msg = sqlite3_errmsg(conn_);
         } else {
             msg = std::string(what) + ": " + sqlite3_errmsg(conn_);

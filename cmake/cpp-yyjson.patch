@@ -1,0 +1,116 @@
+diff --git a/include/cpp_yyjson.hpp b/include/cpp_yyjson.hpp
+index 0042aff..454c367 100644
+--- a/include/cpp_yyjson.hpp
++++ b/include/cpp_yyjson.hpp
+@@ -194,7 +194,11 @@ namespace yyjson
+         {
+             if (size == 0) return init();
+             buf_ = std::allocator<char_like>().allocate(size);
++#if defined(_LIBCPP_VERSION)
++            std::uninitialized_default_construct(buf_, buf_ + size);
++#else
+             std::ranges::uninitialized_default_construct(buf_, buf_ + size);
++#endif
+             size_ = size;
+ 
+             // allocate memory pool
+@@ -3854,14 +3858,15 @@ namespace yyjson
+             auto result = T();
+             for (auto&& [key, value] : obj)
+             {
+-                field_reflection::any_of_field(result, [&](auto field_name, auto& field_value) {
+-                    if (key == field_name)
+-                    {
+-                        field_value = cast<std::remove_cvref_t<decltype(field_value)>>(value);
+-                        return true;
+-                    }
+-                    return false;
+-                });
++                field_reflection::any_of_field(
++                    result, [key = std::move(key), value = std::move(value)](auto field_name, auto& field_value) {
++                        if (key == field_name)
++                        {
++                            field_value = cast<std::remove_cvref_t<decltype(field_value)>>(value);
++                            return true;
++                        }
++                        return false;
++                    });
+             }
+             return result;
+         }
+@@ -3881,16 +3886,26 @@ namespace yyjson
+                 {
+                     result.reserve(arr.size());
+                 }
++#if defined(_LIBCPP_VERSION)
++                std::transform(arr.begin(), arr.end(), std::back_inserter(result),
++                               [](const auto& e) { return cast<std::ranges::range_value_t<T>>(e); });
++#else
+                 std::ranges::transform(arr, std::back_inserter(result),
+                                        [](const auto& e) { return cast<std::ranges::range_value_t<T>>(e); });
++#endif
+             }
+             else  // TODO: fixed size range concept
+             {
+                 if (arr.size() > std::ranges::size(result))
+                     throw bad_cast(
+                         fmt::format("the size of JSON array is greater than the size of {}", NAMEOF_TYPE(T)));
++#if defined(_LIBCPP_VERSION)
++                std::transform(arr.begin(), arr.end(), std::ranges::begin(result),
++                               [](const auto& e) { return cast<std::ranges::range_value_t<T>>(e); });
++#else
+                 std::ranges::transform(arr, std::ranges::begin(result),
+                                        [](const auto& e) { return cast<std::ranges::range_value_t<T>>(e); });
++#endif
+             }
+ 
+             return result;
+@@ -3900,10 +3915,8 @@ namespace yyjson
+ #pragma GCC diagnostic ignored "-Wnonnull"
+ #pragma GCC diagnostic ignored "-Wconversion"
+ #pragma GCC diagnostic ignored "-Wfloat-conversion"
+-#pragma GCC diagnostic ignored "-Wimplicit-float-conversion"
+ #pragma GCC diagnostic ignored "-Wfloat-equal"
+ #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+-#pragma GCC diagnostic ignored "-Wshorten-64-to-32"
+ #endif
+         template <typename Json>
+         requires (std::same_as<reader::const_value_ref, Json> || writer::detail::base_of_const_value<Json>)
+diff --git a/include/field_reflection.hpp b/include/field_reflection.hpp
+index da7ad1c..cd266a9 100644
+--- a/include/field_reflection.hpp
++++ b/include/field_reflection.hpp
+@@ -12,12 +12,15 @@
+ 
+ #include <climits>  // CHAR_BIT
+ #include <limits>
+-#include <source_location>
+ #include <string_view>
+ #include <tuple>
+ #include <type_traits>
+ #include <utility>
+ 
++#if !defined(__clang__)
++#include <source_location>
++#endif
++
+ namespace field_reflection
+ {
+     namespace detail
+@@ -25,7 +28,6 @@ namespace field_reflection
+ 
+ #if defined(__GNUC__) || defined(__clang__)
+ #pragma GCC diagnostic push
+-#pragma GCC diagnostic ignored "-Wundefined-inline"
+ #endif
+         template <typename T, std::size_t = 0>
+         struct any_lref
+@@ -610,7 +612,7 @@ namespace field_reflection
+         template <typename T, auto Ptr>
+         consteval std::string_view get_function_name()
+         {
+-#if defined(__clang__) && defined(_WIN32)
++#if defined(__clang__)
+             // clang-cl returns function_name() as __FUNCTION__ instead of __PRETTY_FUNCTION__
+             return std::string_view{__PRETTY_FUNCTION__};
+ #else

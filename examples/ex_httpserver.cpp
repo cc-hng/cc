@@ -1,4 +1,5 @@
 
+#include "msg/msg.h"
 #include <boost/callable_traits.hpp>
 #include <boost/hana.hpp>
 #include <cc/asio.hpp>
@@ -8,7 +9,6 @@
 #include <cc/lit/util.h>
 #include <cc/type_traits.h>
 #include <fmt/core.h>
-#include <msg/msg.h>
 
 class HttpServer {
 public:

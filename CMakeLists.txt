@@ -12,7 +12,6 @@ string(COMPARE EQUAL ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR} PROJECT_IS_
 option(CC_ENABLE_COROUTINE "Enable c++2x coroutines" ON)
 option(CC_ENABLE_IO_URING "Enable io_uring" ON)
 option(CC_ENABLE_ASAN "Enable asan" ON)
-option(CC_WITH_YYJSON "With yyjson" ON)
 option(CC_WITH_SQLITE3 "With sqlite3" ON)
 option(CC_ENABLE_INSTALL "Enable install" ${PROJECT_IS_TOP_LEVEL})
 option(CC_BUILD_TESTS "Build unittest" ${PROJECT_IS_TOP_LEVEL})
@@ -77,6 +76,7 @@ include(cmake/FetchGSL.cmake)
 include(cmake/FetchSpdlog.cmake)
 include(cmake/FetchAbsl.cmake)
 include(cmake/FetchRE2.cmake)
+include(cmake/FetchYyjson.cmake)
 
 if(CC_BUILD_TESTS)
   include(cmake/FetchGTest.cmake)
@@ -84,10 +84,6 @@ endif()
 
 if(CC_BUILD_BENCHES)
   include(cmake/FetchNanobench.cmake)
-endif()
-
-if(CC_WITH_YYJSON)
-  include(cmake/FetchYyjson.cmake)
 endif()
 
 if(CC_WITH_SQLITE3)
@@ -100,8 +96,10 @@ FetchContent_Declare(
   URL_HASH SHA256=55632412599faf85adf68ddc580a61f7b094e63a9da6345deeadc5408610246a)
 list(APPEND MY_LIBS Format.cmake)
 
-FetchContent_Declare(std_coroutines URL https://github.com/cc-hng/std_coroutines/archive/refs/tags/v1.0.1.tar.gz)
-list(APPEND MY_LIBS std_coroutines)
+if(CC_ENABLE_COROUTINE)
+  FetchContent_Declare(std_coroutines URL https://github.com/cc-hng/std_coroutines/archive/refs/tags/v1.0.3.tar.gz)
+  list(APPEND MY_LIBS std_coroutines)
+endif()
 
 # FetchContent_Declare(
 #   PackageProject.cmake
@@ -130,22 +128,21 @@ target_link_libraries(
   INTERFACE Microsoft.GSL::GSL
             fmt::fmt
             spdlog
-            std::coroutines
             Threads::Threads
             Boost::headers
             Boost::url
             re2
-            $<$<BOOL:${CC_WITH_YYJSON}>:yyjson>)
-target_compile_definitions(
-  3rd_dependencies INTERFACE $<$<BOOL:${CC_WITH_SQLITE3}>:CC_WITH_SQLITE3> $<$<BOOL:${CC_WITH_YYJSON}>:CC_WITH_YYJSON>
-                             $<$<BOOL:${CC_ENABLE_COROUTINE}>:CC_ENABLE_COROUTINE>)
+            yyjson
+            cpp_yyjson::cpp_yyjson)
+target_compile_definitions(3rd_dependencies INTERFACE $<$<BOOL:${CC_WITH_SQLITE3}>:CC_WITH_SQLITE3>
+                                                      $<$<BOOL:${CC_ENABLE_COROUTINE}>:CC_ENABLE_COROUTINE>)
 
 if(CC_WITH_SQLITE3)
   target_link_libraries(3rd_dependencies INTERFACE sqlite3)
 endif()
 
 if(CC_ENABLE_COROUTINE)
-  target_compile_features(3rd_dependencies INTERFACE cxx_std_20)
+  target_link_libraries(3rd_dependencies INTERFACE std::coroutines)
 endif()
 
 if(CC_ENABLE_IO_URING)

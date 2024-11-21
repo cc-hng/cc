@@ -3,135 +3,112 @@
 #include <gtest/gtest.h>
 
 TEST(value, primitive) {
-    cc::Value v;
+    var_t v;
 
-    v.set<int>(1);
-    EXPECT_TRUE(1 == v.get<int>());
+    v = 1;
+    EXPECT_TRUE(1 == static_cast<int>(v));
 
-    v.set<bool>(true);
-    EXPECT_TRUE(v.get<bool>());
+    v = true;
+    EXPECT_TRUE(static_cast<bool>(v));
 
-    v.set("hello");
-    EXPECT_TRUE(v.get<std::string_view>() == "hello");
+    v = "hello";
+    EXPECT_TRUE(static_cast<std::string_view>(v) == "hello");
 
     std::vector<int> vi = {1, 2, 3};
-    auto v2             = vi;
-    v.set(std::move(v2));
-    EXPECT_TRUE(vi == v.get<std::vector<int>>());
+    v                   = vi;
+    EXPECT_TRUE(vi == static_cast<std::vector<int>>(v));
 
     std::unordered_map<std::string, int> m = {
         {"a", 1},
         {"b", 2}
     };
-    v.set(m);
-    EXPECT_TRUE(m == v.get<decltype(m)>());
+    v = m;
+    EXPECT_TRUE(m == static_cast<decltype(m)>(v));
 }
 
 TEST(value, tuple) {
     auto t = std::make_tuple<int, std::string>(1, "x");
-    cc::Value v;
-    v.set(t);
-    EXPECT_TRUE(v[0].get<int>() == 1);
-    EXPECT_TRUE(v[1].get<std::string>() == "x");
+    var_t v;
+    v        = t;
+    auto arr = *v.as_array();
+    EXPECT_TRUE(arr[0].cast<int>() == 1);
+    EXPECT_TRUE(arr[1].cast<std::string>() == "x");
 
-    auto t2 = v.get<std::tuple<int, std::string>>();
+    auto t2 = static_cast<std::tuple<int, std::string>>(v);
     EXPECT_TRUE(t == t2);
 }
 
 TEST(value, tuple_with_value) {
-    auto t = std::make_tuple<cc::Value, cc::Value>(1, true);
-    cc::Value v;
-    v.set(t);
-    EXPECT_TRUE(v[0].get<int>() == 1);
-    EXPECT_TRUE(v[1].get<int>() == 1);
-    EXPECT_TRUE(v[1].get<bool>());
-
-    auto t2 = v.get<std::tuple<cc::Value, cc::Value>>();
-    EXPECT_TRUE(t == t2);
+    auto t = std::make_tuple<var_t, var_t>(1, true);
+    var_t v;
+    v        = t;
+    auto arr = *v.as_array();
+    EXPECT_TRUE(arr[0].cast<int>() == 1);
+    EXPECT_TRUE(arr[1].cast<int>() == 1);
+    EXPECT_TRUE(arr[1].cast<bool>());
 }
 
-TEST(value, update) {
-    cc::Value v1, v2;
-    std::unordered_map<std::string, int> m = {
+TEST(value, patch) {
+    var_t v1 = std::unordered_map<std::string, int>{
         {"a", 1},
         {"b", 2},
     };
-    v1.set(m);
-    std::unordered_map<std::string, int> n = {
+    var_t v2 = std::unordered_map<std::string, int>{
         {"b", 3},
         {"c", 4},
     };
-    v2.set(n);
-    v1.update(v2);
-    EXPECT_TRUE(v1.get<int>("a") == 1);
-    EXPECT_TRUE(v1.get<int>("b") == 3);
-    EXPECT_TRUE(v1["c"].is_null());
-}
 
-TEST(value, merge) {
-    cc::Value v1(1);
-    cc::Value v2(2);
-    cc::Value v3;
-    auto v = cc::Value::merge(v1, v2);
-    EXPECT_TRUE(v.get<int>() == 2);
-    v = cc::Value::merge(v1, v3);
-    EXPECT_TRUE(v.get<int>() == 1);
-    v = cc::Value::merge(v3, v1);
-    EXPECT_TRUE(v.get<int>() == 1);
-
-    v1["a"] = 3;
-    v2["a"] = 4;
-    v2["b"] = "x";
-    v       = cc::Value::merge(v1, v2);
-    EXPECT_TRUE(v.get<int>("a") == 4);
-    EXPECT_TRUE(v.get<std::string>("b") == "x");
+    var::patch(v1, v2);
+    EXPECT_TRUE(var::get<int>(v1, "a") == 1);
+    EXPECT_TRUE(var::get<int>(v1, "b") == 3);
+    EXPECT_TRUE(!var::contains(v1, "c"));
 }
 
 TEST(value, deepequal) {
-    cc::Value v1, v2, v3;
-    v1.set("a.b", 1);
-    v1.set("a.c", 2);
+    var_t v1, v2, v3;
+    var::set(v1, "a.b", 1);
+    var::set(v1, "a.c", 2);
 
-    v2.set("a.b", 1);
-    v2.set("a.c", "2");
+    var::set(v2, "a.b", 1);
+    var::set(v2, "a.c", "2");
 
-    v3.set("a.b", 1);
-    v3.set("a.c.x", 1);
-
-    EXPECT_TRUE(v1.deepequal(v2));
-    EXPECT_TRUE(v2.deepequal(v1));
-    EXPECT_TRUE(!v3.deepequal(v1));
+    var::set(v3, "a.b", 1);
+    var::set(v3, "a.c.x", 1);
+    EXPECT_TRUE(var::equal(v1, v2));
+    EXPECT_TRUE(var::equal(v2, v1));
+    EXPECT_TRUE(!var::equal(v3, v1));
 }
 
 TEST(value, remove) {
-    cc::Value v;
-    v.set("a.x", 1);
-    v.set("a.y", 1);
+    var_t v;
+    var::set(v, "a.x", 1);
+    var::set(v, "a.y", 1);
+    var::set(v, "b", 3);
 
-    v.set("b", 3);
-
-    v.remove("a.b.c");
-    EXPECT_TRUE(v.contains("a.x") && v.contains("a.y") && v.contains("b"));
-    v.remove("e");
-    v.remove("b");
-    EXPECT_TRUE(v.contains("a.x") && v.contains("a.y") && !v.contains("b"));
-    v.remove("a.x");
-    EXPECT_TRUE(!v.contains("a.x") && v.contains("a.y") && !v.contains("b"));
+    var::remove(v, "a.b.c");
+    EXPECT_TRUE(var::contains(v, "a.x") && var::contains(v, "a.y") && var::contains(v, "b"));
+    var::remove(v, "e");
+    var::remove(v, "b");
+    EXPECT_TRUE(var::contains(v, "a.x") && var::contains(v, "a.y") && !var::contains(v, "b"));
+    var::remove(v, "a.x");
+    EXPECT_TRUE(!var::contains(v, "a.x") && var::contains(v, "a.y") && !var::contains(v, "b"));
 }
 
 TEST(value, struct) {
     // clang-format off
     struct user_t {
-        BOOST_HANA_DEFINE_STRUCT(user_t,
-            (std::string, name),
-            (int, age));
+        std::string name;
+        int age;
+
+        bool operator==(const user_t& rhs) const {
+            return name == rhs.name && age == rhs.age;
+        }
     };
     // clang-format on
 
     user_t usr = {.name = "cc", .age = 18};
-    cc::Value v;
-    v.set(usr);
+    var_t v    = usr;
 
-    user_t usr2 = v.get<user_t>();
-    EXPECT_TRUE(usr.name == usr2.name && usr.age == usr2.age);
+    user_t usr2 = var::as<user_t>(v);
+    EXPECT_TRUE(usr == usr2);
 }

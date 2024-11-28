@@ -16,7 +16,6 @@
         "CPACK_DEBIAN_PACKAGE_MAINTAINER": "cc <cc@l2x.top>",
         "CPACK_DEBIAN_PACKAGE_NAME": "demo",
         "CPACK_DEBIAN_PACKAGE_DEPENDS": "",
-        "FETCHCONTENT_BASE_DIR": "/opt/my/cmake/downloads",
         "CMAKE_BUILD_TYPE": "Release"
       }
     },
@@ -38,6 +37,7 @@
       "toolchainFile": "/opt/gcc/toolchains/aarch64-linux-gnu.toolchain.cmake",
       "cacheVariables": {
         "CPACK_PACKAGING_INSTALL_PREFIX": "/",
+        "CC_ENABLE_IO_URING": "OFF",
         "CMAKE_INSTALL_PREFIX": "/opt/my/aarch64"
       },
       "inherits": [
@@ -49,6 +49,7 @@
       "toolchainFile": "/opt/gcc/toolchains/arm-none-linux.toolchain.cmake",
       "cacheVariables": {
         "CPACK_PACKAGING_INSTALL_PREFIX": "/",
+        "CC_ENABLE_IO_URING": "OFF",
         "CMAKE_INSTALL_PREFIX": "/opt/my/arm32"
       },
       "inherits": [

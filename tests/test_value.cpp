@@ -6,24 +6,24 @@ TEST(value, primitive) {
     var_t v;
 
     v = 1;
-    EXPECT_TRUE(1 == static_cast<int>(v));
+    EXPECT_TRUE(1 == var::as<int>(v));
 
     v = true;
-    EXPECT_TRUE(static_cast<bool>(v));
+    EXPECT_TRUE(var::as<bool>(v));
 
     v = "hello";
-    EXPECT_TRUE(static_cast<std::string_view>(v) == "hello");
+    EXPECT_TRUE(var::as<std::string_view>(v) == "hello");
 
     std::vector<int> vi = {1, 2, 3};
     v                   = vi;
-    EXPECT_TRUE(vi == static_cast<std::vector<int>>(v));
+    EXPECT_TRUE(vi == var::as<std::vector<int>>(v));
 
     std::unordered_map<std::string, int> m = {
         {"a", 1},
         {"b", 2}
     };
     v = m;
-    EXPECT_TRUE(m == static_cast<decltype(m)>(v));
+    EXPECT_TRUE(m == var::as<decltype(m)>(v));
 }
 
 TEST(value, tuple) {
@@ -34,7 +34,7 @@ TEST(value, tuple) {
     EXPECT_TRUE(arr[0].cast<int>() == 1);
     EXPECT_TRUE(arr[1].cast<std::string>() == "x");
 
-    auto t2 = static_cast<std::tuple<int, std::string>>(v);
+    auto t2 = var::as<std::tuple<int, std::string>>(v);
     EXPECT_TRUE(t == t2);
 }
 
@@ -48,7 +48,7 @@ TEST(value, tuple_with_value) {
     EXPECT_TRUE(arr[1].cast<bool>());
 }
 
-TEST(value, patch) {
+TEST(value, merge_patch) {
     var_t v1 = std::unordered_map<std::string, int>{
         {"a", 1},
         {"b", 2},
@@ -58,10 +58,17 @@ TEST(value, patch) {
         {"c", 4},
     };
 
-    var::patch(v1, v2);
-    EXPECT_TRUE(var::get<int>(v1, "a") == 1);
-    EXPECT_TRUE(var::get<int>(v1, "b") == 3);
-    EXPECT_TRUE(!var::contains(v1, "c"));
+    var_t t0 = var::clone(v1);
+    var::patch(t0, v2);
+    EXPECT_TRUE(var::get<int>(t0, "a") == 1);
+    EXPECT_TRUE(var::get<int>(t0, "b") == 3);
+    EXPECT_TRUE(!var::contains(t0, "c"));
+
+    var_t t1 = var::clone(v1);
+    var::merge(t1, v2);
+    EXPECT_TRUE(var::get<int>(t1, "a") == 1);
+    EXPECT_TRUE(var::get<int>(t1, "b") == 3);
+    EXPECT_TRUE(var::get<int>(t1, "c") == 4);
 }
 
 TEST(value, deepequal) {

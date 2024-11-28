@@ -3,10 +3,26 @@
 
 #include <charconv>
 #include <list>
-#include <type_traits>
 #include <boost/algorithm/string.hpp>
+#include <cc/type_traits.h>
+#include <cc/value.h>
 #include <cpp_yyjson.hpp>
 #include <gsl/gsl>
+
+// for debug
+#include <typeinfo>
+#include <boost/core/demangle.hpp>
+#include <fmt/core.h>
+
+using var_t        = yyjson::value;
+using var_ref      = yyjson::writer::value_ref;
+using var_cref     = yyjson::writer::const_value_ref;
+using var_obj_t    = yyjson::writer::object;
+using var_obj_ref  = yyjson::writer::object_ref;
+using var_obj_cref = yyjson::writer::const_object_ref;
+using var_arr_t    = yyjson::writer::array;
+using var_arr_ref  = yyjson::writer::array_ref;
+using var_arr_cref = yyjson::writer::const_array_ref;
 
 namespace cc {
 
@@ -36,18 +52,15 @@ inline std::vector<std::string_view> str_split(std::string_view raw, std::string
 }  // namespace detail
 
 struct var {
-    using value_type      = yyjson::value;
-    using value_ref       = yyjson::writer::value_ref;
-    using const_value_ref = yyjson::writer::const_value_ref;
     enum type_e { NUL = 0, BOOLEAN, INTEGER, REAL, STRING, ARRAY, OBJECT };
 
-    static value_type from_json(std::string_view s, bool allow_comments = false) {
+    static var_t from_json(std::string_view s, bool allow_comments = false) {
         yyjson::ReadFlag flag = allow_comments ? yyjson::ReadFlag::AllowComments
                                                : yyjson::ReadFlag::NoFlag;
         return yyjson::value(yyjson::read(s, flag));
     }
 
-    static type_e type(const value_type& self) {
+    static type_e type(const var_t& self) {
         if (self.is_object()) {
             return type_e::OBJECT;
         } else if (self.is_array()) {
@@ -66,9 +79,9 @@ struct var {
         GSL_ASSUME(false);
     }
 
-    static value_type clone(const value_type& self) {
+    static var_t clone(const var_t& self) {
         if (self.is_null()) {
-            return value_type();
+            return var_t();
         } else if (self.is_bool()) {
             return *self.as_bool();
         } else if (self.is_int()) {
@@ -82,7 +95,7 @@ struct var {
         }
     }
 
-    static bool equal(const value_type& lhs, const value_type& rhs) {
+    static bool equal(const var_t& lhs, const var_t& rhs) {
         if (lhs.is_null()) {
             return rhs.is_null();
         } else if (lhs.is_bool()) {
@@ -133,19 +146,19 @@ struct var {
         }
     }
 
-    static void patch(value_type& self, const value_type& rhs, bool strict = true) {
+    static void patch(var_t& self, const var_t& rhs, bool strict = true) {
         if (!(self.is_object() && rhs.is_object())) {
             throw std::runtime_error("var::patch expect object !!!");
         }
 
         std::list<std::string_view> toremove;
-        auto obj1 = *self.as_object();
-        auto obj2 = *rhs.as_object();
+        auto obj1 = var_obj_ref(self);
+        auto obj2 = var_obj_cref(rhs);
         for (auto [k, v] : obj2) {
             if (v.is_null()) {
                 toremove.emplace_back(k);
             } else if (obj1.contains(k)) {
-                value_type v0 = obj1[k];
+                var_t v0 = obj1[k];
                 if (strict && type(v0) != type(v)) {
                     throw std::runtime_error("var::patch dismatch type. key=" + std::string(k));
                 }
@@ -163,14 +176,49 @@ struct var {
         }
     }
 
-    static value_ref at(value_type& self, std::string_view ks) {
+    static void merge(var_t& src, const var_t& dst) {
+        if (!(src.is_object() && dst.is_object())) {
+            throw std::runtime_error("var::patch expect object !!!");
+        }
+
+        std::list<std::string_view> toremove;
+        auto obj1 = *src.as_object();
+        auto obj2 = *dst.as_object();
+        for (auto [k, v] : obj2) {
+            if (v.is_null()) {
+                toremove.emplace_back(k);
+            } else if (obj1.contains(k)) {
+                var_t v0 = obj1[k];
+                if (v0.is_object() && v.is_object()) {
+                    merge(v0, v);
+                } else {
+                    v0 = clone(v);
+                }
+            } else {
+                obj1.emplace(k, clone(v));
+            }
+        }
+
+        for (auto k : toremove) {
+            obj1.erase(k);
+        }
+    }
+
+    static var_ref at(var_t& self, std::string_view ks) {
         auto keys = detail::str_split(ks, ".");
-        std::list<value_ref> parts;
+        if (keys.size() == 1) {
+            if (GSL_UNLIKELY(!self.is_object())) {
+                throw std::runtime_error(fmt::format("var expect object. key={} !!!", ks));
+            }
+            return (*self.as_object())[ks];
+        }
+
+        std::list<var_ref> parts;
 
         if (!self.is_object()) {
             self = yyjson::object();
         }
-        parts.emplace_back(value_ref(self));
+        parts.emplace_back(var_ref(self));
         for (auto k : keys) {
             auto obj = parts.back().as_object();
             if (GSL_UNLIKELY(!obj.has_value())) {
@@ -184,10 +232,17 @@ struct var {
         return parts.back();
     }
 
-    static const_value_ref at(const value_type& self, std::string_view ks) {
+    static var_cref at(const var_t& self, std::string_view ks) {
         auto keys = detail::str_split(ks, ".");
-        std::list<const_value_ref> parts;
-        parts.emplace_back(const_value_ref(self));
+        if (keys.size() == 1) {
+            if (GSL_UNLIKELY(!self.is_object())) {
+                throw std::runtime_error(fmt::format("var expect object. key={} !!!", ks));
+            }
+            return (*self.as_object())[ks];
+        }
+
+        std::list<var_cref> parts;
+        parts.emplace_back(var_cref(self));
         for (auto k : keys) {
             auto obj = parts.back().as_object();
             if (GSL_UNLIKELY(!obj.has_value())) {
@@ -202,31 +257,61 @@ struct var {
         return parts.back();
     }
 
-    template <typename T>
-    static T as(const value_type& self) {
-        if constexpr (std::is_same_v<T, bool>) {
-            if (GSL_UNLIKELY(self.is_string())) {
-                auto s = *self.as_string();
-                return s == "true" || s == "1" || s == "yes" || s == "on" || s == "TRUE"
-                       || s == "YES" || s == "ON";
+    template <typename U, typename T = std::remove_cvref_t<U>>
+    static T as(const var_t& self) {
+        if constexpr (std::is_same_v<T, var_t>) {
+            return var::clone(self);
+        } else if constexpr (std::is_same_v<T, var_obj_cref>) {
+            if (GSL_UNLIKELY(!self.is_object())) {
+                throw yyjson::bad_cast("Expect object type. type=" + std::to_string(type(self)));
             }
-        } else if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
-            if (GSL_UNLIKELY(self.is_string())) {
-                return detail::ston<T>(*self.as_string());
+            return var_obj_cref(self);
+        } else if constexpr (std::is_same_v<T, var_arr_cref>) {
+            if (GSL_UNLIKELY(!self.is_array())) {
+                throw yyjson::bad_cast("Expect array type. type=" + std::to_string(type(self)));
             }
-        } else if constexpr (std::is_same_v<std::string, T>) {
-            if (GSL_UNLIKELY(self.is_bool())) {
-                return std::to_string(*self.as_bool());
-            } else if (GSL_UNLIKELY(self.is_int())) {
-                return std::to_string(*self.as_int());
-            } else if (GSL_UNLIKELY(self.is_real())) {
-                return std::to_string(*self.as_real());
+            return var_arr_cref(self);
+        } else if constexpr (cc::is_tuple_v<T>) {
+            auto arr = var_arr_cref(self);
+            if (GSL_UNLIKELY(std::tuple_size_v<T> != arr.size())) {
+                throw yyjson::bad_cast(
+                    fmt::format("Tuple size mismatch. sizeof(tuple)={}, sizeof(arr)={}, tuple={}",
+                                std::tuple_size_v<T>, arr.size(),
+                                boost::core::demangle(typeid(T).name())));
             }
+            T t;
+            std::apply(
+                [&arr](auto&... args) {
+                    int i = 0;
+                    ((args = var::as<std::decay_t<decltype(args)>>(arr[i++])), ...);
+                },
+                t);
+            return {t};
+        } else {
+            if constexpr (std::is_same_v<T, bool>) {
+                if (GSL_UNLIKELY(self.is_string())) {
+                    auto s = *self.as_string();
+                    return s == "true" || s == "1" || s == "yes" || s == "on" || s == "TRUE"
+                           || s == "YES" || s == "ON";
+                }
+            } else if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
+                if (GSL_UNLIKELY(self.is_string())) {
+                    return detail::ston<T>(*self.as_string());
+                }
+            } else if constexpr (std::is_same_v<std::string, T>) {
+                if (GSL_UNLIKELY(self.is_bool())) {
+                    return std::to_string(*self.as_bool());
+                } else if (GSL_UNLIKELY(self.is_int())) {
+                    return std::to_string(*self.as_int());
+                } else if (GSL_UNLIKELY(self.is_real())) {
+                    return std::to_string(*self.as_real());
+                }
+            }
+            return self.cast<T>();
         }
-        return self.cast<T>();
     }
 
-    static bool contains(const value_type& self, std::string_view ks) {
+    static bool contains(const var_t& self, std::string_view ks) {
         if (!self.is_object()) {
             return false;
         }
@@ -239,7 +324,7 @@ struct var {
         }
     }
 
-    static void remove(value_type& self, std::string_view ks) {
+    static void remove(var_t& self, std::string_view ks) {
         if (!self.is_object()) {
             return;
         }
@@ -247,8 +332,8 @@ struct var {
         auto keys = detail::str_split(ks, ".");
         auto last = keys.back();
         keys.pop_back();
-        std::list<value_ref> parts;
-        parts.emplace_back(value_ref(self));
+        std::list<var_ref> parts;
+        parts.emplace_back(var_ref(self));
         for (auto k0 : keys) {
             auto obj = parts.back().as_object();
             if (GSL_UNLIKELY(!obj.has_value())) {
@@ -267,18 +352,17 @@ struct var {
     }
 
     template <typename T>
-    static T get(const value_type& self, std::string_view ks) {
+    static T get(const var_t& self, std::string_view ks) {
         auto v = at(self, ks);
         return as<T>(v);
     }
 
     template <typename T>
-    static void set(value_type& self, std::string_view ks, T&& v) {
+    static void set(var_t& self, std::string_view ks, T&& v) {
         at(self, ks) = std::forward<T>(v);
     }
 };
 
 }  // namespace cc
 
-using var_t = cc::var::value_type;
-using var   = cc::var;
+using var = cc::var;

@@ -1,5 +1,5 @@
 diff --git a/include/cpp_yyjson.hpp b/include/cpp_yyjson.hpp
-index 0042aff..454c367 100644
+index 0042aff..980d1dd 100644
 --- a/include/cpp_yyjson.hpp
 +++ b/include/cpp_yyjson.hpp
 @@ -194,7 +194,11 @@ namespace yyjson
@@ -14,7 +14,86 @@ index 0042aff..454c367 100644
              size_ = size;
  
              // allocate memory pool
-@@ -3854,14 +3858,15 @@ namespace yyjson
+@@ -1487,12 +1491,6 @@ namespace yyjson
+                 {
+                     return default_caster<U>::from_json(const_value_ref(doc_, val_));
+                 }
+-                template <typename T>
+-                requires (!base_of_value<T>)
+-                explicit operator T() const
+-                {
+-                    return cast<T>();
+-                }
+ 
+                 [[nodiscard]] auto write(WriteFlag write_flag = WriteFlag::NoFlag) const
+                 {
+@@ -1942,12 +1940,6 @@ namespace yyjson
+                 {
+                     return default_caster<U>::from_json(const_array_ref(*this));
+                 }
+-                template <typename T>
+-                requires (!base_of_value<T>)
+-                explicit operator T() const
+-                {
+-                    return cast<T>();
+-                }
+             };
+ 
+             template <typename DocType>
+@@ -2671,12 +2663,6 @@ namespace yyjson
+                 {
+                     return default_caster<U>::from_json(const_object_ref(*this));
+                 }
+-                template <typename T>
+-                requires (!base_of_value<T>)
+-                explicit operator T() const
+-                {
+-                    return cast<T>();
+-                }
+             };
+ 
+             template <typename DocType>
+@@ -3206,13 +3192,6 @@ namespace yyjson
+             {
+                 return detail::default_caster<U>::from_json(*this);
+             }
+-
+-            template <typename T>
+-            requires (!detail::base_of_value_ref<T>)
+-            explicit operator T() const
+-            {
+-                return cast<T>();
+-            }
+         };
+ 
+         class const_array_iter
+@@ -3317,12 +3296,6 @@ namespace yyjson
+             {
+                 return detail::default_caster<U>::from_json(*this);
+             }
+-            template <typename T>
+-            requires (!detail::base_of_value_ref<T>)
+-            explicit operator T() const
+-            {
+-                return cast<T>();
+-            }
+         };
+         [[nodiscard]] inline std::optional<const_array_ref> const_value_ref::as_array() const noexcept
+         {
+@@ -3458,12 +3431,6 @@ namespace yyjson
+             {
+                 return detail::default_caster<U>::from_json(*this);
+             }
+-            template <typename T>
+-            requires (!detail::base_of_value_ref<T>)
+-            explicit operator T() const
+-            {
+-                return cast<T>();
+-            }
+         };
+         [[nodiscard]] inline std::optional<const_object_ref> const_value_ref::as_object() const noexcept
+         {
+@@ -3854,14 +3821,15 @@ namespace yyjson
              auto result = T();
              for (auto&& [key, value] : obj)
              {
@@ -38,7 +117,7 @@ index 0042aff..454c367 100644
              }
              return result;
          }
-@@ -3881,16 +3886,26 @@ namespace yyjson
+@@ -3881,16 +3849,26 @@ namespace yyjson
                  {
                      result.reserve(arr.size());
                  }
@@ -65,7 +144,7 @@ index 0042aff..454c367 100644
              }
  
              return result;
-@@ -3900,10 +3915,8 @@ namespace yyjson
+@@ -3900,10 +3878,8 @@ namespace yyjson
  #pragma GCC diagnostic ignored "-Wnonnull"
  #pragma GCC diagnostic ignored "-Wconversion"
  #pragma GCC diagnostic ignored "-Wfloat-conversion"

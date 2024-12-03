@@ -10,8 +10,9 @@ project(
 string(COMPARE EQUAL ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR} PROJECT_IS_TOP_LEVEL)
 
 option(CC_ENABLE_COROUTINE "Enable c++2x coroutines" ON)
-option(CC_ENABLE_IO_URING "Enable io_uring" ON)
-option(CC_ENABLE_ASAN "Enable asan" ON)
+option(CC_ENABLE_IO_URING "Enable io_uring" OFF)
+option(CC_ENABLE_ASAN "Enable address san" OFF)
+option(CC_ENABLE_TSAN "Enable thread sanitize" OFF)
 option(CC_WITH_SQLITE3 "With sqlite3" ON)
 option(CC_ENABLE_INSTALL "Enable install" ${PROJECT_IS_TOP_LEVEL})
 option(CC_BUILD_TESTS "Build unittest" ${PROJECT_IS_TOP_LEVEL})
@@ -23,6 +24,24 @@ option(CC_BUILD_EXAMPLES "Build examples" ${PROJECT_IS_TOP_LEVEL})
 #####################################
 include(cmake/common.cmake)
 
+# address|thread san
+if(CC_ENABLE_ASAN AND CC_ENABLE_TSAN)
+  message(FATAL_ERROR "Expect only one sanitizer (address | thread)!")
+
+  if(NOT WIN32)
+    if(CC_ENABLE_ASAN)
+      set(CMAKE_CXX_FLAGS_DEBUG
+          "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer")
+      set(CMAKE_EXE_LINKER_FLAGS_DEBUG
+          "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer")
+    elseif(CC_ENABLE_TSAN)
+      set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=thread")
+      set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=thread")
+    endif()
+  endif()
+endif()
+
+# io_uring
 if(CC_ENABLE_IO_URING AND LINUX)
   if(CMAKE_CROSSCOMPILING)
     include(CheckIncludeFileCXX)
@@ -203,3 +222,14 @@ if(CC_ENABLE_INSTALL)
   #   install(DIRECTORY ${PROJECT_SOURCE_DIR}/examples DESTINATION bin)
   #   include(CPack)
 endif()
+
+#####################################
+message(STATUS "------------------ info ------------------")
+message(STATUS "c standard: ${CMAKE_C_STANDARD}")
+message(STATUS "cxx standard: ${CMAKE_CXX_STANDARD}")
+message(STATUS "lto: ${CMAKE_INTERPROCEDURAL_OPTIMIZATION}")
+message(STATUS "c++20 coroutines: ${CC_ENABLE_COROUTINE}")
+message(STATUS "io_uring: ${CC_ENABLE_IO_URING}")
+message(STATUS "address san: ${CC_ENABLE_ASAN}")
+message(STATUS "thread san: ${CC_ENABLE_TSAN}")
+message(STATUS "------------------------------------------")

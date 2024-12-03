@@ -43,7 +43,9 @@ T ston(std::string_view s) {
     return ret;
 }
 
-inline std::vector<std::string_view> str_split(std::string_view raw, std::string_view sep) {
+// clang-format off
+inline std::vector<std::string_view>  // clang-format on
+str_split(std::string_view raw, std::string_view sep) {
     std::vector<std::string_view> result;
     boost::algorithm::split(result, raw, boost::is_any_of(std::string(sep)));
     return result;

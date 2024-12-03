@@ -12,7 +12,13 @@ namespace cc {
 namespace chan {
 
 namespace detail {
-template <typename T, typename MutexPolicy = NonMutex, template <class> class Lock = LockGuard>
+
+// clang-format off
+template <
+    typename T,
+    typename MutexPolicy = NonMutex,
+    template <class> class Lock = LockGuard
+>  // clang-format on
 struct mpsc_context_t {
     MutexPolicy mtx_;
     CondVar<MutexPolicy> cv_;

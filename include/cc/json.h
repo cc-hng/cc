@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <string_view>
 #include <type_traits>
 #include <cpp_yyjson.hpp>
@@ -7,7 +8,7 @@
 namespace cc {
 namespace json {
 
-template <typename T>
+template <typename U, typename T = std::remove_cv_t<U>>
 T parse(std::string_view jstr, bool allow_comments = false) {
     yyjson::ReadFlag flag = allow_comments ? yyjson::ReadFlag::AllowComments
                                            : yyjson::ReadFlag::NoFlag;

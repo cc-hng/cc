@@ -27,7 +27,7 @@ include(cmake/common.cmake)
 # address|thread san
 if(CC_ENABLE_ASAN AND CC_ENABLE_TSAN)
   message(FATAL_ERROR "Expect only one sanitizer (address | thread)!")
-
+else()
   if(NOT WIN32)
     if(CC_ENABLE_ASAN)
       set(CMAKE_CXX_FLAGS_DEBUG

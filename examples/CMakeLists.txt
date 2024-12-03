@@ -7,7 +7,7 @@ macro(add_example TARGET)
   else()
     add_executable(${TARGET} ${TARGET}.cpp)
   endif()
-  target_link_libraries(${TARGET} PRIVATE cc ${EX_DEPENDS})
+  target_link_libraries(${TARGET} PRIVATE cc spdlog ${EX_DEPENDS})
 endmacro(add_example)
 
 add_example(ex_asio_coro)

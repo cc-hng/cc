@@ -2,7 +2,7 @@
 
 #include <any>
 #include <functional>
-#include <shared_mutex>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <boost/callable_traits.hpp>
@@ -10,6 +10,10 @@
 #include <boost/hana.hpp>
 #include <cc/type_traits.h>
 #include <cc/util.h>
+
+#include <deque>
+#include <memory>
+#include <cc/stopwatch.h>
 
 #ifdef CC_ENABLE_COROUTINE
 #    include <cc/asio.hpp>
@@ -29,44 +33,112 @@ struct adjust_signature<R(Args...)> {
     using type = R(const std::decay_t<Args>&...);
 };
 
+// clang-format off
+template <
+    typename MutexPolicy = NonMutex,
+    template <class> class ReaderLock = LockGuard,
+    template <class> class WriterLock = LockGuard
+>  // clang-format on
+class TimeTracker : boost::noncopyable {
+    MutexPolicy mtx_;
+    const double duration_;
+    const int times_;
+    std::deque<cc::StopWatch> data_;
+
+public:
+    TimeTracker(double duration, int times) : duration_(duration), times_(times) {}
+
+    ~TimeTracker() = default;
+
+    bool track() noexcept {
+        WriterLock<MutexPolicy> _lck{mtx_};
+        if (data_.size() < times_) {
+            data_.emplace_back(cc::StopWatch());
+        } else {
+            if (data_.front().elapsed() < duration_) {
+                return false;
+            } else {
+                data_.pop_front();
+                data_.emplace_back(cc::StopWatch());
+            }
+        }
+        return true;
+    }
+};
+
 }  // namespace detail
 
-template <class MutexPolicy = NonMutex, template <class> class ReaderLock = LockGuard,
-          template <class> class WriterLock = LockGuard>
+// clang-format off
+template <
+    typename MutexPolicy = NonMutex,
+    template <class> class ReaderLock = LockGuard,
+    template <class> class WriterLock = LockGuard
+>  // clang-format on
 class Signal : boost::noncopyable {
     using handler_t = int;
 
 public:
     Signal() = default;
 
+    /// 订阅某个话题
+    ///
+    /// @param topic    话题
+    /// @param f        回调
+    /// @return handler_t  句柄id
     template <typename Fn>
     std::enable_if_t<!std::is_member_function_pointer_v<Fn>, handler_t>
     sub(std::string_view topic, Fn&& f) {
-        using Signature = typename detail::adjust_signature<ct::function_type_t<Fn>>::type;
         WriterLock<MutexPolicy> _lck{mtx_};
-        std::function<Signature> ff = std::forward<Fn>(f);
-        return sub_impl(topic, std::move(ff));
+        return sub_impl(topic, make_sig_handle(std::forward<Fn>(f)));
+    }
+
+    /// 限制某个话题一段时间内(duration)最多订阅次数(times)
+    ///
+    /// @param topic    话题
+    /// @param duration 时间段，单位秒
+    /// @param times    次数
+    /// @param f        回调
+    /// @return handler_t  句柄id
+    template <typename Fn, typename = std::enable_if_t<!std::is_member_function_pointer_v<Fn>>>
+    handler_t sub(std::string_view topic, double duration, int times, Fn&& f) {
+        using T         = detail::TimeTracker<MutexPolicy, ReaderLock, WriterLock>;
+        auto tracker    = std::make_shared<T>(duration, times);
+        auto f0         = make_sig_handle(std::forward<Fn>(f));
+        decltype(f0) nf = [tracker, duration, times, f0 = std::move(f0)](const auto&... args) {
+            if (tracker->track()) {
+                f0(args...);
+            }
+        };
+        return sub(topic, std::move(nf));
+    }
+
+    /// 限制某个话题每隔一段时间内(duration)最多订阅一次
+    ///
+    /// @param topic    话题
+    /// @param duration 时间段，单位秒
+    /// @param f        回调
+    /// @return handler_t  句柄id
+    template <typename Fn, typename = std::enable_if_t<!std::is_member_function_pointer_v<Fn>>>
+    handler_t sub(std::string_view topic, double duration, Fn&& f) {
+        return sub(topic, duration, 1, std::forward<Fn>(f));
     }
 
     template <typename MemFn, typename Cls>
     std::enable_if_t<std::is_member_function_pointer_v<MemFn>, handler_t>
     sub(std::string_view topic, const MemFn& fn, Cls obj) {
-        using Signature =
-            typename detail::adjust_signature<remove_member_pointer_t<MemFn>>::type;
-        auto ff = std::function<Signature>([fn, obj](auto&&... args) {
-            if constexpr (std::is_pointer_v<Cls>) {
-                return (obj->*fn)(std::forward<decltype(args)>(args)...);
-            } else {
-                static constexpr auto has_get =
-                    boost::hana::is_valid([](auto&& obj) -> decltype(obj.get()) {});
-                BOOST_HANA_CONSTANT_CHECK(has_get(obj));
-                auto origin = obj.get();
-                return (origin->*fn)(std::forward<decltype(args)>(args)...);
-            }
-        });
+        return sub(topic, make_sig_handle(fn, obj));
+    }
 
-        WriterLock<MutexPolicy> _lck{mtx_};
-        return sub_impl(topic, std::move(ff));
+    template <typename MemFn, typename Cls>
+    std::enable_if_t<std::is_member_function_pointer_v<MemFn>, handler_t>
+    sub(std::string_view topic, double duration, int times, const MemFn& fn, Cls obj) {
+        return sub(topic, duration, times, make_sig_handle(fn, obj));
+    }
+
+    template <typename MemFn, typename Cls>
+    std::enable_if_t<std::is_member_function_pointer_v<MemFn>, handler_t>
+    sub(std::string_view topic, double duration, const MemFn& fn, Cls obj) {
+        return sub(topic, duration, 1, make_sig_handle(fn, obj));
     }
 
     template <typename... Args>
@@ -75,8 +147,7 @@ public:
         ReaderLock<MutexPolicy> _lck{mtx_};
         auto range = registry_.equal_range(std::string(topic));
         for (auto it = range.first; it != range.second; ++it) {
-            const auto* f =
-                std::any_cast<std::function<Signature>>(&(handlers_.at(it->second)));
+            const auto* f = std::any_cast<std::function<Signature>>(&(handlers_.at(it->second)));
             (*f)(args...);
         }
     }
@@ -108,13 +179,11 @@ public:
 #ifdef CC_ENABLE_COROUTINE
 
     template <typename... Ts>
-    std::tuple<handler_t, cc::chan::Receiver<std::tuple<Ts...>>>
-    stream(std::string_view topic) {
+    std::tuple<handler_t, cc::chan::Receiver<std::tuple<Ts...>>> stream(std::string_view topic) {
         using R                 = std::tuple<Ts...>;
         auto [sender, receiver] = cc::chan::make_mpsc<R>();
-        auto id                 = sub(topic, [sender0 = sender](Ts... args) {
-            (*sender0)(std::make_tuple(args...));
-        });
+        auto id =
+            sub(topic, [sender0 = sender](Ts... args) { (*sender0)(std::make_tuple(args...)); });
         return std::make_tuple(id, std::move(receiver));
     }
 
@@ -129,6 +198,29 @@ private:
         return h;
     }
 
+    template <typename Fn, typename = std::enable_if_t<!std::is_member_function_pointer_v<Fn>>>
+    auto make_sig_handle(Fn&& f) {
+        using Signature = typename detail::adjust_signature<ct::function_type_t<Fn>>::type;
+        return std::function<Signature>(std::forward<Fn>(f));
+    }
+
+    template <typename MemFn, typename Cls,
+              typename = std::enable_if_t<std::is_member_function_pointer_v<MemFn>>>
+    auto make_sig_handle(const MemFn& fn, Cls obj) {
+        using Signature = typename detail::adjust_signature<remove_member_pointer_t<MemFn>>::type;
+        return std::function<Signature>([fn, obj](auto&&... args) {
+            if constexpr (std::is_pointer_v<Cls>) {
+                return (obj->*fn)(std::forward<decltype(args)>(args)...);
+            } else {
+                static constexpr auto has_get =
+                    boost::hana::is_valid([](auto&& obj) -> decltype(obj.get()) {});
+                BOOST_HANA_CONSTANT_CHECK(has_get(obj));
+                auto origin = obj.get();
+                return (origin->*fn)(std::forward<decltype(args)>(args)...);
+            }
+        });
+    }
+
 private:
     MutexPolicy mtx_;
     handler_t next_id_ = 0;
@@ -136,6 +228,6 @@ private:
     std::unordered_map<handler_t, std::any> handlers_;
 };
 
-using ConcurrentSignal = Signal<std::shared_mutex, std::shared_lock>;
+using ConcurrentSignal = Signal<std::recursive_mutex>;
 
 }  // namespace cc

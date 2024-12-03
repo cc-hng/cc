@@ -1,5 +1,7 @@
 
 #include "msg/msg.h"
+#include <list>
+#include <unordered_map>
 #include <boost/callable_traits.hpp>
 #include <boost/hana.hpp>
 #include <cc/asio.hpp>
@@ -7,6 +9,7 @@
 #include <cc/lit.hpp>
 #include <cc/lit/multipart_parser.h>
 #include <cc/lit/util.h>
+#include <cc/stopwatch.h>
 #include <cc/type_traits.h>
 #include <fmt/core.h>
 
@@ -17,6 +20,11 @@ public:
       , origin_(10) {}
 
     void start() {
+        // clang-format off
+        app_
+          .use(lit::middleware::cors)
+          .use(lit::middleware::make_circuit_breaker(10, 5));
+        // clang-format on
         app_.serve_static("/public", "/data/www/html");
 
         app_.Any("/api/b1", [](const auto& req, auto& resp) {

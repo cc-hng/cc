@@ -12,8 +12,8 @@ inline constexpr bool is_noncopyable_v =
 
 }
 
-template <typename T, typename = std::enable_if_t<(std::is_constructible_v<T>
-                                                   && detail::is_noncopyable_v<T>)>>
+template <typename T,
+          typename = std::enable_if_t<(std::is_constructible_v<T> && detail::is_noncopyable_v<T>)>>
 struct SingletonProvider {
     using value_type = T;
 

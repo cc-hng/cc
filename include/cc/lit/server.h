@@ -195,14 +195,16 @@ public:
 
     /// route
     template <typename Fn = http_handle_t>
-    void use(Fn&& handler) {
+    App& use(Fn&& handler) {
         // router_.use(std::move(handler));
         router_.use(make_handle(std::forward<Fn>(handler)));
+        return *this;
     }
 
     template <typename Fn>
-    void route(http::verb method, std::string_view path, Fn&& handler) {
+    App& route(http::verb method, std::string_view path, Fn&& handler) {
         router_.route(method, path, make_handle(std::forward<Fn>(handler)));
+        return *this;
     }
 
     void Get(std::string_view path, auto&& handler) {

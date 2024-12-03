@@ -1,6 +1,7 @@
+#include "log.h"
 #include <cc/asio/pool.h>
 #include <cc/signal.h>
-#include <fmt/core.h>
+#include <cc/value.h>
 #include <fmt/ranges.h>
 
 static cc::ConcurrentSignal kSig;
@@ -11,34 +12,34 @@ struct Player {
     Player(std::string_view name) : name_(name) {}
     ~Player() {}
 
-    void on_pos(Point3D pos) { fmt::print("[player {}] pos {}\n", name_, pos); }
+    void on_pos(Point3D pos) { LOGI("[player {}] pos {}", name_, pos); }
 
     void on_vel(int x, int y) {
         x_ = x;
         y_ = y;
-        fmt::print("[player {}] speed [{}, {}]\n", name_, x, y);
+        LOGI("[player {}] speed [{}, {}]", name_, x, y);
     }
-    void on_game_over() { fmt::print("[player {}] game over\n", name_); }
+    void on_game_over() { LOGI("[player {}] game over", name_); }
 
     std::string name_;
     int x_, y_;
 };
 
 void on_game_over1() {
-    fmt::print("[module 1] game over\n");
+    LOGI("[module 1] game over");
 }
 void on_game_over2() {
-    fmt::print("[module 2] game over\n");
+    LOGI("[module 2] game over");
 }
 void on_vel(int x, int y) {
-    fmt::print("[unknown] speed x: {}, y: {}\n", x, y);
+    LOGI("[unknown] speed x: {}, y: {}", x, y);
     if (x < 0) {
         kSig.pub("game_over");
     }
 }
 
 void on_pos(Point3D pos) {
-    fmt::print("[unknown] pos: {}\n", pos);
+    LOGI("[unknown] pos: {}", pos);
 }
 
 asio::awaitable<void> async_background_task() {
@@ -50,25 +51,38 @@ asio::awaitable<void> async_background_task() {
         }
 
         for (auto [x, y] : items) {
-            fmt::print("[background] speed x: {}, y: {}\n", x, y);
+            LOGI("[background] speed x: {}, y: {}", x, y);
         }
     }
 }
 
+void on_val1(var_t v) {
+    LOGI("on_val1: {}", v);
+}
+
+void on_val2(const var_t& v) {
+    LOGI("on_val2: {}", v);
+}
+
 int main() {
+    init_logger();
+
     auto& signal = kSig;
-    signal.sub("vel", on_vel);
+    signal.sub("vel", 1, 1, on_vel);
     signal.sub("game_over", on_game_over1);
     signal.sub("game_over", on_game_over2);
     signal.sub("pos", on_pos);
 
-    auto& ctx = cc::AsioPool::instance().get_io_context();
+    signal.sub("/on_val", on_val1);
+    signal.sub("/on_val", on_val2);
+
+    // auto& ctx = cc::AsioPool::instance().get_io_context();
     // asio::co_spawn(ctx, async_background_task(), asio::detached);
 
     // player by shared_ptr
     {
         auto player = std::make_shared<Player>("shared_ptr");
-        signal.sub("vel", &Player::on_vel, player);
+        signal.sub("vel", 0.5, &Player::on_vel, player);
         signal.sub("game_over", &Player::on_game_over, player);
         signal.sub("pos", &Player::on_pos, player);
     }
@@ -89,7 +103,9 @@ int main() {
     signal.pub("pos", pt);
     signal.pub("game_over");
 
-    cc::AsioPool::instance().set_timeout(1000, [] { signal.pub("vel", 12, 12); });
+    cc::AsioPool::instance().set_interval(1000, [](auto) { signal.pub("/on_val", var_t(1)); });
+    cc::AsioPool::instance().set_interval(10, [](auto) { signal.pub("vel", 12, 12); });
+    // cc::AsioPool::instance().set_timeout(1000, [] { signal.pub("vel", 12, 12); });
     cc::AsioPool::instance().run(1);
     return 0;
 }

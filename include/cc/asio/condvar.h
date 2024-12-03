@@ -12,17 +12,20 @@
 
 namespace cc {
 
-template <typename MutexPolicy = NonMutex, template <class> class WriterLock = LockGuard>
+// clang-format off
+template <
+    typename MutexPolicy = NonMutex,
+    template <class> class WriterLock = LockGuard
+>  // clang-format on
 class CondVar final : public boost::noncopyable {
 public:
     CondVar()  = default;
     ~CondVar() = default;
 
     asio::task<void> wait() {
-        using time_point = asio::steady_timer::clock_type::time_point;
-        auto ctx         = co_await asio::this_coro::executor;
-        std::shared_ptr<asio::steady_timer> timer =
-            std::make_shared<asio::steady_timer>(ctx);
+        using time_point                          = asio::steady_timer::clock_type::time_point;
+        auto ctx                                  = co_await asio::this_coro::executor;
+        std::shared_ptr<asio::steady_timer> timer = std::make_shared<asio::steady_timer>(ctx);
         timer->expires_at(time_point::max());
         std::weak_ptr<asio::steady_timer> weak_timer(timer);
         wait_impl([weak_timer] {

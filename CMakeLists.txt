@@ -73,7 +73,6 @@ include(FetchContent)
 
 include(cmake/FetchFmt.cmake)
 include(cmake/FetchGSL.cmake)
-include(cmake/FetchSpdlog.cmake)
 include(cmake/FetchAbsl.cmake)
 include(cmake/FetchRE2.cmake)
 include(cmake/FetchYyjson.cmake)
@@ -88,6 +87,10 @@ endif()
 
 if(CC_WITH_SQLITE3)
   include(cmake/FetchSqlite3.cmake)
+endif()
+
+if(CC_BUILD_EXAMPLES)
+  include(cmake/FetchSpdlog.cmake)
 endif()
 
 FetchContent_Declare(
@@ -127,7 +130,6 @@ target_link_libraries(
   3rd_dependencies
   INTERFACE Microsoft.GSL::GSL
             fmt::fmt
-            spdlog
             Threads::Threads
             Boost::headers
             Boost::url

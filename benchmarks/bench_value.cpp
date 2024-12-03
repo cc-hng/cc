@@ -17,7 +17,7 @@ struct user_t {
     std::string name;
     int age;
 
-    bool operator==(const user_t& rhs) { return name == rhs.name && age == rhs.age; }
+    bool operator==(const user_t& rhs) const { return name == rhs.name && age == rhs.age; }
 };
 
 struct car_t {
@@ -27,7 +27,7 @@ struct car_t {
     std::vector<double> tire_pressure;
     user_t owner;
 
-    bool operator==(const car_t& rhs) {
+    bool operator==(const car_t& rhs) const {
         return make == rhs.make && model == rhs.model && year == rhs.year
                && tire_pressure == rhs.tire_pressure && owner == rhs.owner;
     }
@@ -60,3 +60,37 @@ static void bench_value(bench::Bench& b) {
 }
 
 BENCHMARK_REGISTE(bench_value);
+
+static inline int add1(int a, int b) {
+    return a + b;
+}
+
+static constexpr auto add2 = [](int a, int b) -> int {
+    return a + b;
+};
+
+static void bench_function_value(bench::Bench& b) {
+    var_t params = std::make_tuple(3, 4);
+
+    b.title("value");
+    b.run("add1:raw", [&] {
+        auto sum = add1(3, 4);
+        bench::doNotOptimizeAway(sum);
+    });
+    b.run("add2:raw", [&] {
+        auto sum = add2(3, 4);
+        bench::doNotOptimizeAway(sum);
+    });
+    b.run("add1:value", [&] {
+        auto [a, b] = var::as<std::tuple<int, int>>(params);
+        auto sum    = add1(a, b);
+        bench::doNotOptimizeAway(sum);
+    });
+    b.run("add2:value", [&] {
+        auto [a, b] = var::as<std::tuple<int, int>>(params);
+        auto sum    = add2(a, b);
+        bench::doNotOptimizeAway(sum);
+    });
+}
+
+BENCHMARK_REGISTE(bench_function_value);

@@ -62,8 +62,12 @@ inline void mk_parent_dir(std::string_view path) {
 
 }  // namespace detail
 
-template <typename MutexPolicy = cc::NonMutex, template <typename> class ReadLock = cc::LockGuard,
-          template <typename> class WriteLock = cc::LockGuard>
+// clang-format off
+template <
+    typename MutexPolicy = NonMutex,
+    template <class> class ReadLock = LockGuard,
+    template <class> class WriteLock = LockGuard
+>  // clang-format on
 class Sqlite3pp final : boost::noncopyable {
 public:
     Sqlite3pp() : closed_(false), auto_commit_(true), conn_(nullptr) {}

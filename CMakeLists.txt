@@ -119,6 +119,7 @@ FetchContent_Declare(
 list(APPEND MY_LIBS Format.cmake)
 
 if(CC_ENABLE_COROUTINE)
+  set(CMAKE_CXX_STANDARD 20)
   FetchContent_Declare(std_coroutines URL https://github.com/cc-hng/std_coroutines/archive/refs/tags/v1.0.3.tar.gz)
   list(APPEND MY_LIBS std_coroutines)
 endif()

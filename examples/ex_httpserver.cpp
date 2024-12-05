@@ -21,9 +21,7 @@ public:
 
     void start() {
         // clang-format off
-        app_
-          .use(lit::middleware::cors)
-          .use(lit::middleware::make_circuit_breaker(10, 5));
+        app_.use(lit::middleware::cors);
         // clang-format on
         app_.serve_static("/public", "/data/www/html");
 

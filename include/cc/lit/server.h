@@ -1,8 +1,11 @@
 #pragma once
 
+#include <algorithm>
+#include <filesystem>
 #include <iostream>
 #include <list>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -54,7 +57,8 @@ public:
 
         std::tuple<bool, std::optional<http::message_generator>>
         operator()(const http::request<http::string_body>& req) const {
-            auto method = req.method();
+            namespace fs = std::filesystem;
+            auto method  = req.method();
             if (GSL_UNLIKELY(method != http::verb::head && method != http::verb::get)) {
                 return std::make_tuple(false, std::nullopt);
             }
@@ -65,19 +69,69 @@ public:
                 return std::make_tuple(false, std::nullopt);
             }
 
-            auto path = path_cat(doc_root, match);
+            auto path  = path_cat(doc_root, match);
+            auto path0 = path;
             if (path.back() == '/') {
                 path.append("index.html");
             }
 
+            std::optional<http::message_generator> msg;
             beast::error_code ec;
             http::file_body::value_type body;
-            body.open(path.c_str(), beast::file_mode::scan, ec);
-            if (ec == beast::errc::no_such_file_or_directory) {
+            if (!fs::exists(path) && path0.back() == '/' && fs::is_directory(path0)) {
+                std::ostringstream oss;
+                oss << R"(<!DOCTYPE html> <html> <head> </head> <body>)";
+                oss << "<h3>Directory: " << path0 << "</h3> <ul>";
+                try {
+                    // 收集并排序目录条目
+                    std::vector<fs::directory_entry> entries;
+                    for (const auto& entry : fs::directory_iterator(path0)) {
+                        entries.push_back(entry);
+                    }
+
+                    // 先显示目录，后显示文件
+                    std::sort(entries.begin(), entries.end(),
+                              [](const fs::directory_entry& a, const fs::directory_entry& b) {
+                                  if (fs::is_directory(a) != fs::is_directory(b)) {
+                                      return fs::is_directory(a);
+                                  }
+                                  return a.path().filename() < b.path().filename();
+                              });
+
+                    // 生成列表项
+                    for (const auto& entry : entries) {
+                        std::string name = entry.path().filename().string();
+                        std::string back = fs::is_directory(entry) ? "/" : "";
+
+                        oss << "            <li><a href=\"" << mount_point << match << name << back
+                            << "\">" << name << back << "</a></li>\n";
+                    }
+
+                } catch (const std::exception& e) {
+                    oss << "            <li>Error: " << e.what() << "</li>\n";
+                }
+
+                // HTML footer
+                oss << R"(        </ul> </body> </html>)";
+
+                http::response<http::string_body> resp{http::status::ok, req.version()};
+                resp.set(http::field::server, BOOST_BEAST_VERSION_STRING);
+                resp.set(http::field::content_type, "text/html");
+                resp.body() = oss.str();
+                resp.prepare_payload();
+                msg = std::move(resp);
+                return std::make_tuple(true, std::move(msg));
+            }
+
+            if (!fs::is_directory(path)) {
+                body.open(path.c_str(), beast::file_mode::scan, ec);
+                if (ec == beast::errc::no_such_file_or_directory) {
+                    return std::make_tuple(false, std::nullopt);
+                }
+            } else {
                 return std::make_tuple(false, std::nullopt);
             }
 
-            std::optional<http::message_generator> msg;
             if (GSL_UNLIKELY(ec)) {
                 http::response<http::string_body> resp{http::status::internal_server_error,
                                                        req.version()};

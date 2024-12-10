@@ -1,19 +1,19 @@
 #pragma once
 
 #include <any>
+#include <deque>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
+#include <typeinfo>
 #include <unordered_map>
 #include <boost/callable_traits.hpp>
 #include <boost/core/noncopyable.hpp>
 #include <boost/hana.hpp>
+#include <cc/stopwatch.h>
 #include <cc/type_traits.h>
 #include <cc/util.h>
-
-#include <deque>
-#include <memory>
-#include <cc/stopwatch.h>
 
 #ifdef CC_ENABLE_COROUTINE
 #    include <cc/asio.hpp>
@@ -32,6 +32,12 @@ template <typename R, typename... Args>
 struct adjust_signature<R(Args...)> {
     using type = R(const std::decay_t<Args>&...);
 };
+
+template <typename... Args>
+std::string type_name() {
+    auto s = (std::string(typeid(std::decay_t<Args>).name()) + "#" + ...);
+    return s.substr(0, s.size() - 1);
+}
 
 // clang-format off
 template <
@@ -144,8 +150,17 @@ public:
     template <typename... Args>
     void pub(std::string_view topic, Args&&... args) {
         using Signature = typename detail::adjust_signature<void(Args...)>::type;
+        std::string topic0(topic);
+        if (topic_types_.count(topic0)) {
+            auto typname = detail::type_name<Signature>();
+            if (topic_types_.at(topic0) != typname) {
+                throw std::runtime_error("Signal::pub type dismatch. registed="
+                                         + topic_types_.at(topic0) + ", current=" + typname);
+            }
+        }
+
         ReaderLock<MutexPolicy> _lck{mtx_};
-        auto range = registry_.equal_range(std::string(topic));
+        auto range = registry_.equal_range(topic0);
         for (auto it = range.first; it != range.second; ++it) {
             const auto* f = std::any_cast<std::function<Signature>>(&(handlers_.at(it->second)));
             (*f)(args...);
@@ -153,26 +168,34 @@ public:
     }
 
     void unsub(std::string_view topic) {
+        std::string topic0(topic);
         WriterLock<MutexPolicy> _lck{mtx_};
-        auto range = registry_.equal_range(std::string(topic));
+        auto range = registry_.equal_range(topic0);
         for (auto it = range.first; it != range.second; ++it) {
             handlers_.erase(it->second);
         }
-        registry_.erase(std::string(topic));
+        registry_.erase(topic0);
+        topic_types_.erase(topic0);
     }
 
     void unsub(handler_t id) {
         WriterLock<MutexPolicy> _lck{mtx_};
         handlers_.erase(id);
 
+        std::string topic;
         auto it = registry_.begin();
         while (it != registry_.end()) {
             if (it->second == id) {
-                it = registry_.erase(it);
+                topic = it->first;
+                it    = registry_.erase(it);
                 break;
             } else {
                 ++it;
             }
+        }
+
+        if (!registry_.contains(topic)) {
+            topic_types_.erase(topic);
         }
     }
 
@@ -192,6 +215,16 @@ public:
 private:
     template <typename Signature>
     handler_t sub_impl(std::string_view topic, std::function<Signature>&& f) {
+        std::string topic0(topic);
+        auto typname = detail::type_name<Signature>();
+        if (topic_types_.contains(topic0)) {
+            if (typname != topic_types_.at(topic0)) {
+                throw std::runtime_error("Signal::sub type dismatch. before="
+                                         + topic_types_.at(topic0) + ", after=" + typname);
+            }
+        } else {
+            topic_types_.emplace(topic0, (std::string&&)typname);
+        }
         handler_t h = next_id_++;
         registry_.emplace(std::string(topic), h);
         handlers_.emplace(h, std::move(f));
@@ -226,6 +259,7 @@ private:
     handler_t next_id_ = 0;
     std::unordered_multimap<std::string, handler_t> registry_;
     std::unordered_map<handler_t, std::any> handlers_;
+    std::unordered_map<std::string, std::string> topic_types_;
 };
 
 using ConcurrentSignal = Signal<std::recursive_mutex>;

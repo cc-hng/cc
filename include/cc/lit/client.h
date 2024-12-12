@@ -33,13 +33,15 @@ struct Connection {
     std::string host;
     std::string port;
     bool tls;
+    bool first;
     beast::flat_buffer buffer;
 
-    Connection(tcp_stream&& s, std::string h, std::string p, bool t)
+    Connection(tcp_stream&& s, std::string h, std::string p, bool t, bool f = true)
       : stream(std::move(s))
       , host(std::move(h))
       , port(std::move(p))
-      , tls(t) {}
+      , tls(t)
+      , first(f) {}
 
     ~Connection() {
         // Gracefully close the socket
@@ -92,6 +94,7 @@ public:
 
     void save_connection(std::shared_ptr<Connection> conn) {
         std::unique_lock<std::mutex> lock(mtx_);
+        conn->first     = false;
         std::string key = conn->host + ":" + conn->port;
         auto& queue     = connections_[key];
         queue.push_back(conn);
@@ -118,62 +121,68 @@ template <typename Body = beast::http::string_body>
 asio::awaitable<beast::http::response<Body>>
 fetch(std::string_view url, const fetch_option_t options = {}) {
     detail::ConnectionPool& pool = detail::ConnectionPool::instance();
-    std::shared_ptr<detail::Connection> conn;
-    http::response<Body> res;
-
-    try {
-        boost::urls::url_view u(url);
-        auto scheme      = u.scheme();
-        auto host        = u.host();
-        auto target      = u.path();
-        std::string port = u.port();
-        if (port.empty()) {
-            if (scheme == "http") {
-                port = "80";
-            } else if (scheme == "https") {
-                port = "443";
-            }
+    boost::urls::url_view u(url);
+    auto scheme      = u.scheme();
+    auto host        = u.host();
+    auto host0       = host;
+    auto target      = u.path();
+    std::string port = u.port();
+    if (port.empty()) {
+        if (scheme == "http") {
+            port = "80";
+        } else if (scheme == "https") {
+            port = "443";
         }
-        if (GSL_UNLIKELY(port.empty())) {
-            throw std::runtime_error("unknown port");
-        }
-
-        std::string requri = target.empty() ? "/" : target;
-        if (u.has_query()) {
-            requri += "?";
-            requri += u.query();
-        }
-
-        conn = co_await pool.get_connection(host, port, scheme == "https" ? true : false);
-
-        http::request<http::string_body> req{options.method, requri, 11};
-        req.set(http::field::host, host);
-        req.set(http::field::content_type, "application/json");
-        req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
-        req.keep_alive(options.keepalive);
-        req.body() = std::move(options.body);
-        for (const auto& kv : options.headers) {
-            req.set(kv.first, kv.second);
-        }
-        req.prepare_payload();
-
-        conn->stream.expires_after(std::chrono::seconds(options.timeout));
-        std::ignore = co_await http::async_write(conn->stream, req);
-
-        conn->buffer.clear();
-        std::ignore = co_await http::async_read(conn->stream, conn->buffer, res);
-
-        if (options.keepalive) {
-            pool.save_connection(conn);
-        }
-    } catch (...) {
-        if (conn && options.keepalive) {
-            pool.save_connection(conn);
-        }
-        throw;
+    } else {
+        host0 += ":" + port;
+    }
+    if (GSL_UNLIKELY(port.empty())) {
+        throw std::runtime_error("unknown port");
     }
 
-    co_return res;
+    std::string requri = target.empty() ? "/" : target;
+    if (u.has_query()) {
+        requri += "?";
+        requri += u.query();
+    }
+
+    for (;;) {
+        std::shared_ptr<detail::Connection> conn;
+        try {
+            conn = co_await pool.get_connection(host, port, scheme == "https" ? true : false);
+
+            http::request<http::string_body> req{options.method, requri, 11};
+            req.set(http::field::host, host0);
+            req.set(http::field::content_type, "application/json");
+            req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+            req.keep_alive(options.keepalive);
+            req.body() = std::move(options.body);
+            for (const auto& kv : options.headers) {
+                req.set(kv.first, kv.second);
+            }
+            req.prepare_payload();
+
+            conn->stream.expires_after(std::chrono::seconds(options.timeout));
+            std::ignore = co_await http::async_write(conn->stream, req);
+
+            http::response<Body> res;
+            conn->buffer.clear();
+            std::ignore = co_await http::async_read(conn->stream, conn->buffer, res);
+
+            if (options.keepalive) {
+                pool.save_connection(conn);
+            }
+            co_return res;
+        } catch (...) {
+            // 如果连接是keepalive的且抛异常(区分异常)
+            // 则尝试新建连接或者从pool取新的连接，重新尝试
+            if (conn && !conn->first && options.keepalive) {
+                continue;
+            } else {
+                throw;
+            }
+        }
+    }
 }
 
 template <typename Body = beast::http::string_body>

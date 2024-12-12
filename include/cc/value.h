@@ -2,7 +2,7 @@
 #pragma once
 
 #include <charconv>
-#include <list>
+#include <vector>
 #include <boost/algorithm/string.hpp>
 #include <cc/type_traits.h>
 #include <cc/value.h>
@@ -47,6 +47,7 @@ T ston(std::string_view s) {
 inline std::vector<std::string_view>  // clang-format on
 str_split(std::string_view raw, std::string_view sep) {
     std::vector<std::string_view> result;
+    result.reserve(4);
     boost::algorithm::split(result, raw, boost::is_any_of(std::string(sep)));
     return result;
 }
@@ -153,7 +154,8 @@ struct var {
             throw std::runtime_error("var::patch expect object !!!");
         }
 
-        std::list<std::string_view> toremove;
+        std::vector<std::string_view> toremove;
+        toremove.reserve(4);
         auto obj1 = var_obj_ref(self);
         auto obj2 = var_obj_cref(rhs);
         for (auto [k, v] : obj2) {
@@ -183,7 +185,8 @@ struct var {
             throw std::runtime_error("var::patch expect object !!!");
         }
 
-        std::list<std::string_view> toremove;
+        std::vector<std::string_view> toremove;
+        toremove.reserve(4);
         auto obj1 = *src.as_object();
         auto obj2 = *dst.as_object();
         for (auto [k, v] : obj2) {
@@ -215,7 +218,8 @@ struct var {
             return (*self.as_object())[ks];
         }
 
-        std::list<var_ref> parts;
+        std::vector<var_ref> parts;
+        parts.reserve(keys.size() + 1);
 
         if (!self.is_object()) {
             self = yyjson::object();
@@ -243,7 +247,8 @@ struct var {
             return (*self.as_object())[ks];
         }
 
-        std::list<var_cref> parts;
+        std::vector<var_cref> parts;
+        parts.reserve(keys.size() + 1);
         parts.emplace_back(var_cref(self));
         for (auto k : keys) {
             auto obj = parts.back().as_object();
@@ -334,7 +339,8 @@ struct var {
         auto keys = detail::str_split(ks, ".");
         auto last = keys.back();
         keys.pop_back();
-        std::list<var_ref> parts;
+        std::vector<var_ref> parts;
+        parts.reserve(keys.size() + 1);
         parts.emplace_back(var_ref(self));
         for (auto k0 : keys) {
             auto obj = parts.back().as_object();

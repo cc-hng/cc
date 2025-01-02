@@ -138,6 +138,18 @@ public:
         return execute_impl<void>(stmt, std::forward<Args>(args)...);
     }
 
+    int64_t last_insert_rowid() {
+        WriteLock<MutexPolicy> _lck(mtx_);
+        check_conn();
+        return sqlite3_last_insert_rowid(conn_);
+    }
+
+    int affected_rows() {
+        WriteLock<MutexPolicy> _lck(mtx_);
+        check_conn();
+        return sqlite3_changes(conn_);
+    }
+
 private:
     template <typename T>
     static void sqlite3pp_bind(sqlite3_stmt* vm, int param_no, T&& t) {

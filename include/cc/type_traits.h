@@ -20,6 +20,9 @@ class awaitable;
 
 namespace cc {
 
+template <int i>
+using Int2Type = std::integral_constant<int, i>;
+
 /// stl container
 template <typename T>
 struct is_vector : public std::false_type {};

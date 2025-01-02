@@ -43,8 +43,10 @@ int main() {
     )");
 
     sqlconn.execute(R"(INSERT INTO user (name, age) VALUES ('Alice', 30))");
+    fmt::print("last insert rowid: {}\n", sqlconn.last_insert_rowid());
     sqlconn.execute(R"(INSERT INTO user (name, age) VALUES ('Bob', 25))");
     sqlconn.execute(R"(INSERT INTO user (name, age) VALUES ('Charlie', 35))");
+    fmt::print("affected rows: {}\n", sqlconn.affected_rows());
 
     std::string name = "Alice";
     int age          = 30;

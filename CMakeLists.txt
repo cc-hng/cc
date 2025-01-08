@@ -75,6 +75,7 @@ _clear_variable(DESTINATION CMAKE_CXX_FLAGS_DEBUG BACKUP CMAKE_CXX_FLAGS_DEBUG_B
 _clear_variable(DESTINATION CMAKE_EXE_LINKER_FLAGS_DEBUG BACKUP CMAKE_EXE_LINKER_FLAGS_DEBUG_BAK)
 
 include(cmake/external.cmake)
+include(cmake/cpm.cmake)
 
 if(CC_ENABLE_IO_URING)
   find_package(PkgConfig REQUIRED)
@@ -87,77 +88,94 @@ endif()
 
 find_package(Threads REQUIRED)
 
-set(MY_LIBS)
-include(FetchContent)
+set(BOOST_INCLUDE_LIBRARIES "core;asio;hana;beast;url;callable_traits;process")
+cpm_add_package(
+  NAME Boost
+  VERSION 1.86.0 # Versions less than 1.85.0 may need patches for installation targets.
+  URL https://github.com/boostorg/boost/releases/download/boost-1.86.0/boost-1.86.0-cmake.tar.xz
+  URL_HASH SHA256=2c5ec5edcdff47ff55e27ed9560b0a0b94b07bd07ed9928b476150e16b0efc57
+  OPTIONS "BOOST_ENABLE_CMAKE ON" "BOOST_SKIP_INSTALL_RULES ON" # Set `OFF` for installation
+          "BUILD_SHARED_LIBS OFF" "BUILD_TESTING OFF" "BUILD_GMOCK OFF"
+)
+cpm_add_package("gh:fmtlib/fmt#11.0.2")
+cpm_add_package("gh:microsoft/GSL#v4.1.0")
 
-include(cmake/FetchFmt.cmake)
-include(cmake/FetchGSL.cmake)
-include(cmake/FetchAbsl.cmake)
-include(cmake/FetchRE2.cmake)
-include(cmake/FetchYyjson.cmake)
+# google re2
+cpm_add_package(
+  NAME absl
+  GIT_TAG  20240722.0
+  GITHUB_REPOSITORY abseil/abseil-cpp
+  OPTIONS "ABSL_PROPAGATE_CXX_STD ON" "ABSL_ENABLE_INSTALL ON"
+)
+cpm_add_package("gh:google/re2#2024-07-02")
+
+# yyjson
+cpm_add_package(
+  NAME yyjson
+  GIT_TAG 0.10.0
+  GITHUB_REPOSITORY ibireme/yyjson
+  OPTIONS "YYJSON_ENABLE_FASTMATH ON"
+)
+
+cpm_add_package("gh:Neargye/nameof#v0.10.4")
+cpm_add_package(
+  NAME cpp_yyjson
+  GIT_TAG v0.6.0
+  GITHUB_REPOSITORY yosh-matsuda/cpp-yyjson
+  PATCHES ${CMAKE_CURRENT_LIST_DIR}/cmake/cpp-yyjson.patch
+)
 
 if(CC_BUILD_TESTS)
-  include(cmake/FetchGTest.cmake)
+  cpm_add_package("gh:google/googletest#v1.15.2")
 endif()
 
 if(CC_BUILD_BENCHES)
-  include(cmake/FetchNanobench.cmake)
+  cpm_add_package("gh:martinus/nanobench#v4.3.11")
 endif()
 
 if(CC_WITH_SQLITE3)
-  include(cmake/FetchSqlite3.cmake)
+  cpm_add_package("gh:cc-hng/sqlite3#v3.40.0")
 endif()
 
 if(CC_BUILD_EXAMPLES)
-  include(cmake/FetchSpdlog.cmake)
+  cpm_add_package(
+    NAME spdlog
+    GIT_TAG v1.15.0
+    GITHUB_REPOSITORY gabime/spdlog
+    OPTIONS
+      "SPDLOG_INSTALL ON"
+      "SPDLOG_FMT_EXTERNAL ON"
+  )
 endif()
-
-FetchContent_Declare(
-  Format.cmake
-  URL https://github.com/TheLartians/Format.cmake/archive/refs/tags/v1.7.3.tar.gz
-  URL_HASH SHA256=55632412599faf85adf68ddc580a61f7b094e63a9da6345deeadc5408610246a)
-list(APPEND MY_LIBS Format.cmake)
 
 if(CC_ENABLE_COROUTINE)
   set(CMAKE_CXX_STANDARD 20)
-  FetchContent_Declare(std_coroutines URL https://github.com/cc-hng/std_coroutines/archive/refs/tags/v1.0.3.tar.gz)
-  list(APPEND MY_LIBS std_coroutines)
+  cpm_add_package("gh:cc-hng/std_coroutines#v1.0.3")
 endif()
 
-# FetchContent_Declare(
-#   PackageProject.cmake
-#   URL https://github.com/TheLartians/PackageProject.cmake/archive/refs/tags/v1.11.1.tar.gz
-#   URL_HASH SHA256=63f07c6814e9e39e0a21131be0a8093507bd9b0c5d3ff6ca113cb890a26f6ed2)
-# list(APPEND MY_LIBS PackageProject.cmake)
+cpm_add_package("gh:TheLartians/Format.cmake@1.7.3")
+cpm_add_package("gh:TheLartians/PackageProject.cmake@1.12.0")
+# cpm_add_package("gh:aminya/project_options@0.36.2")
 
-FetchContent_MakeAvailable(${MY_LIBS})
 
 _restore_variable(DESTINATION CMAKE_CXX_FLAGS_DEBUG BACKUP CMAKE_CXX_FLAGS_DEBUG_BAK)
 _restore_variable(DESTINATION CMAKE_EXE_LINKER_FLAGS_DEBUG BACKUP CMAKE_EXE_LINKER_FLAGS_DEBUG_BAK)
-
-set(Boost_DEBUG OFF)
-set(Boost_USE_STATIC_LIBS ON)
-set(Boost_NO_WARN_NEW_VERSIONS
-    ON
-    CACHE INTERNAL "")
-find_package(Boost 1.81 REQUIRED COMPONENTS url)
 
 #####################################
 # target
 #####################################
 add_library(3rd_dependencies INTERFACE)
 target_link_libraries(
-  3rd_dependencies
-  INTERFACE Microsoft.GSL::GSL
-            fmt::fmt
-            Threads::Threads
-            Boost::headers
-            Boost::url
-            re2
-            yyjson
-            cpp_yyjson::cpp_yyjson)
-target_compile_definitions(3rd_dependencies INTERFACE $<$<BOOL:${CC_WITH_SQLITE3}>:CC_WITH_SQLITE3>
-                                                      $<$<BOOL:${CC_ENABLE_COROUTINE}>:CC_ENABLE_COROUTINE>)
+  3rd_dependencies INTERFACE
+      Microsoft.GSL::GSL fmt::fmt Threads::Threads
+      Boost::headers Boost::core Boost::hana Boost::asio
+      Boost::url Boost::callable_traits Boost::beast Boost::process
+      re2
+      yyjson cpp_yyjson::cpp_yyjson)
+target_compile_definitions(
+  3rd_dependencies INTERFACE
+      $<$<BOOL:${CC_WITH_SQLITE3}>:CC_WITH_SQLITE3>
+      $<$<BOOL:${CC_ENABLE_COROUTINE}>:CC_ENABLE_COROUTINE>)
 
 if(CC_WITH_SQLITE3)
   target_link_libraries(3rd_dependencies INTERFACE sqlite3)
@@ -169,7 +187,8 @@ endif()
 
 if(CC_ENABLE_IO_URING)
   target_link_libraries(3rd_dependencies INTERFACE liburing)
-  target_compile_definitions(3rd_dependencies INTERFACE BOOST_ASIO_HAS_IO_URING=1 BOOST_ASIO_DISABLE_EPOLL=1)
+  target_compile_definitions(
+    3rd_dependencies INTERFACE BOOST_ASIO_HAS_IO_URING=1 BOOST_ASIO_DISABLE_EPOLL=1)
 endif()
 
 if(WIN32)
@@ -187,8 +206,10 @@ file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include
 add_library(${PROJECT_NAME} INTERFACE)
 target_link_libraries(${PROJECT_NAME} INTERFACE 3rd_dependencies)
 target_sources(${PROJECT_NAME} INTERFACE ${headers})
-target_include_directories(${PROJECT_NAME} INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-                                                     $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>)
+target_include_directories(
+  ${PROJECT_NAME} INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>)
 
 #####################################
 # test

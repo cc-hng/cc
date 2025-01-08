@@ -146,7 +146,7 @@ public:
         }
         try {
             const auto& functor = iter->second;
-            if (functor.check_return_type<R>()) {
+            if (functor.template check_return_type<R>()) {
                 auto&& token = functor.template operator()<R, Args...>(args...);
                 lck.reset();
                 co_return co_await std::move(token);

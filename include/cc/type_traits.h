@@ -114,11 +114,7 @@ constexpr bool is_awaitable_v = is_awaitable<T>::value;
 template <typename F, typename... Args>
 struct is_callable {
     // SFINAE  Check
-#if __cplusplus >= 201703L
     template <typename T, typename Dummy = typename std::invoke_result_t<T, Args...>>
-#else
-    template <typename T, typename Dummy = typename std::result_of<T(Args...)>::type>
-#endif
     static constexpr std::true_type check(std::nullptr_t dummy) {
         return std::true_type{};
     };
@@ -151,17 +147,10 @@ using remove_member_pointer_t = typename remove_member_pointer<T>::type;
 template <typename>
 struct result_of;
 
-#if __cplusplus >= 201703L
 template <typename F, typename... Args>
 struct result_of<F(Args...)> {
     using type = std::invoke_result_t<F, Args...>;
 };
-#else
-template <typename F, typename... Args>
-struct result_of<F(Args...)> {
-    using type = std::result_of_t<F(Args...)>;
-};
-#endif
 
 template <typename T>
 using result_of_t = typename result_of<T>::type;

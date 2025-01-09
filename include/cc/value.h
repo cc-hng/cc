@@ -38,7 +38,7 @@ T ston(std::string_view s) {
         std::from_chars(s.begin(), s.end(), ret);
     }
 #else
-    std::from_chars(s.begin(), s.end(), ret);
+    std::from_chars(&*s.begin(), &*s.end(), ret);
 #endif
     return ret;
 }

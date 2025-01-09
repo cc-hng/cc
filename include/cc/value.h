@@ -99,53 +99,57 @@ struct var {
     }
 
     static bool equal(const var_t& lhs, const var_t& rhs) {
-        if (lhs.is_null()) {
-            return rhs.is_null();
-        } else if (lhs.is_bool()) {
-            return *lhs.as_bool() == as<bool>(rhs);
-        } else if (lhs.is_int()) {
-            return *lhs.as_int() == as<std::int64_t>(rhs);
-        } else if (lhs.is_real()) {
-            return *lhs.as_real() == as<double>(rhs);
-        } else if (lhs.is_string()) {
-            if (rhs.is_string()) {
-                return *lhs.as_string() == *rhs.as_string();
+        try {
+            if (lhs.is_null()) {
+                return rhs.is_null();
+            } else if (lhs.is_bool()) {
+                return *lhs.as_bool() == as<bool>(rhs);
+            } else if (lhs.is_int()) {
+                return *lhs.as_int() == as<std::int64_t>(rhs);
+            } else if (lhs.is_real()) {
+                return *lhs.as_real() == as<double>(rhs);
+            } else if (lhs.is_string()) {
+                if (rhs.is_string()) {
+                    return *lhs.as_string() == *rhs.as_string();
+                } else {
+                    return as<std::string>(lhs) == as<std::string>(rhs);
+                }
+            } else if (lhs.is_array()) {
+                if (!rhs.is_array()) {
+                    return false;
+                }
+                auto arr1 = *lhs.as_array();
+                auto arr2 = *rhs.as_array();
+                int sz    = arr1.size();
+                if (sz != arr2.size()) {
+                    return false;
+                }
+                for (int i = 0; i < sz; i++) {
+                    if (!equal(arr1[i], arr2[i])) {
+                        return false;
+                    }
+                }
+                return true;
+            } else if (lhs.is_object()) {
+                if (!rhs.is_object()) {
+                    return false;
+                }
+                auto obj1 = *lhs.as_object();
+                auto obj2 = *rhs.as_object();
+                if (obj1.size() != obj2.size()) {
+                    return false;
+                }
+                for (const auto [k, v] : obj1) {
+                    if (!equal(v, obj2[k])) {
+                        return false;
+                    }
+                }
+                return true;
             } else {
-                return as<std::string>(lhs) == as<std::string>(rhs);
+                return lhs.write() == rhs.write();
             }
-        } else if (lhs.is_array()) {
-            if (!rhs.is_array()) {
-                return false;
-            }
-            auto arr1 = *lhs.as_array();
-            auto arr2 = *rhs.as_array();
-            int sz    = arr1.size();
-            if (sz != arr2.size()) {
-                return false;
-            }
-            for (int i = 0; i < sz; i++) {
-                if (!equal(arr1[i], arr2[i])) {
-                    return false;
-                }
-            }
-            return true;
-        } else if (lhs.is_object()) {
-            if (!rhs.is_object()) {
-                return false;
-            }
-            auto obj1 = *lhs.as_object();
-            auto obj2 = *rhs.as_object();
-            if (obj1.size() != obj2.size()) {
-                return false;
-            }
-            for (const auto [k, v] : obj1) {
-                if (!equal(v, obj2[k])) {
-                    return false;
-                }
-            }
-            return true;
-        } else {
-            return lhs.write() == rhs.write();
+        } catch (...) {
+            return false;
         }
     }
 

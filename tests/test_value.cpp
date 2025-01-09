@@ -83,6 +83,7 @@ TEST(value, deepequal) {
     EXPECT_TRUE(var::equal(v1, v2));
     EXPECT_TRUE(var::equal(v2, v1));
     EXPECT_TRUE(!var::equal(v3, v1));
+    EXPECT_TRUE(!var::equal(v1, v3));
 }
 
 TEST(value, remove) {

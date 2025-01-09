@@ -153,8 +153,8 @@ if(CC_ENABLE_COROUTINE)
   cpm_add_package("gh:cc-hng/std_coroutines#v1.0.3")
 endif()
 
-cpm_add_package("gh:TheLartians/Format.cmake@1.7.3")
-cpm_add_package("gh:TheLartians/PackageProject.cmake@1.12.0")
+cpm_add_package("gh:TheLartians/Format.cmake@1.8.3")
+cpm_add_package("gh:TheLartians/PackageProject.cmake@1.13.0")
 # cpm_add_package("gh:aminya/project_options@0.36.2")
 
 

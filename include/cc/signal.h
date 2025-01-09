@@ -9,6 +9,7 @@
 #include <typeinfo>
 #include <unordered_map>
 #include <boost/callable_traits.hpp>
+#include <boost/core/demangle.hpp>
 #include <boost/core/noncopyable.hpp>
 #include <cc/stopwatch.h>
 #include <cc/type_traits.h>
@@ -32,10 +33,9 @@ struct adjust_signature<R(Args...)> {
     using type = R(const std::decay_t<Args>&...);
 };
 
-template <typename... Args>
+template <typename Signature>
 std::string type_name() {
-    auto s = (std::string(typeid(std::decay_t<Args>).name()) + "#" + ...);
-    return s.substr(0, s.size() - 1);
+    return boost::core::demangle(typeid(Signature).name());
 }
 
 // clang-format off

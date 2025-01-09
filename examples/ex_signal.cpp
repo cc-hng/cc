@@ -103,11 +103,11 @@ int main() {
     signal.pub("pos", pt);
     signal.pub("game_over");
 
-    cc::AsioPool::instance().set_interval(1000, [](auto) { signal.pub("/on_val", var_t(1)); });
-    cc::AsioPool::instance().set_interval(10, [](auto) { signal.pub("vel", 12, 12); });
+    cc::AsioPool::instance().set_interval(1000, [&](auto) { signal.pub("/on_val", var_t(1)); });
+    cc::AsioPool::instance().set_interval(10, [&](auto) { signal.pub("vel", 12, 12); });
     // cc::AsioPool::instance().set_timeout(1000, [] { signal.pub("vel", 12, 12); });
 
-    cc::AsioPool::instance().set_timeout(3000, [] {
+    cc::AsioPool::instance().set_timeout(3000, [&] {
         // fatal: type dismatch
         signal.pub("vel", 'a', true);
     });

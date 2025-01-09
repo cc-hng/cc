@@ -3,7 +3,6 @@
 #include <list>
 #include <unordered_map>
 #include <boost/callable_traits.hpp>
-#include <boost/hana.hpp>
 #include <cc/asio.hpp>
 #include <cc/json.h>
 #include <cc/lit.hpp>

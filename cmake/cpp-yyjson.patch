@@ -156,11 +156,14 @@ index 0042aff..980d1dd 100644
          template <typename Json>
          requires (std::same_as<reader::const_value_ref, Json> || writer::detail::base_of_const_value<Json>)
 diff --git a/include/field_reflection.hpp b/include/field_reflection.hpp
-index da7ad1c..cd266a9 100644
+index da7ad1c..000e077 100644
 --- a/include/field_reflection.hpp
 +++ b/include/field_reflection.hpp
-@@ -12,12 +12,15 @@
+@@ -10,14 +10,18 @@
  
+ #pragma once
+ 
++#include <cassert>
  #include <climits>  // CHAR_BIT
  #include <limits>
 -#include <source_location>
@@ -176,7 +179,7 @@ index da7ad1c..cd266a9 100644
  namespace field_reflection
  {
      namespace detail
-@@ -25,7 +28,6 @@ namespace field_reflection
+@@ -25,7 +29,6 @@ namespace field_reflection
  
  #if defined(__GNUC__) || defined(__clang__)
  #pragma GCC diagnostic push
@@ -184,7 +187,7 @@ index da7ad1c..cd266a9 100644
  #endif
          template <typename T, std::size_t = 0>
          struct any_lref
-@@ -610,7 +612,7 @@ namespace field_reflection
+@@ -610,7 +613,7 @@ namespace field_reflection
          template <typename T, auto Ptr>
          consteval std::string_view get_function_name()
          {

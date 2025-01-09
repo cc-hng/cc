@@ -4,7 +4,6 @@
 #include <string>
 #include <type_traits>
 #include <boost/callable_traits.hpp>
-#include <boost/hana.hpp>
 #include <cc/json.h>
 #include <cc/lit/object.h>
 #include <cc/type_traits.h>
@@ -14,12 +13,11 @@ namespace lit {
 //
 namespace detail {
 
-namespace ct   = boost::callable_traits;
-namespace hana = boost::hana;
+namespace ct = boost::callable_traits;
 
 class MakeRouteFunctor {
 public:
-    template <typename Fn, typename = hana::when<!std::is_member_function_pointer_v<Fn>>>
+    template <typename Fn, typename = std::enable_if_t<!std::is_member_function_pointer_v<Fn>>>
     constexpr decltype(auto) operator()(Fn&& fn) const {
         using namespace cc::lit;
         using Ret     = ct::return_type_t<Fn>;
@@ -42,7 +40,8 @@ public:
         });
     }
 
-    template <typename Fn, typename Self, typename = hana::when<std::is_member_function_pointer_v<Fn>>>
+    template <typename Fn, typename Self,
+              typename = std::enable_if_t<std::is_member_function_pointer_v<Fn>>>
     constexpr decltype(auto) operator()(const Fn& fn, Self self) const {
         using Ret     = ct::return_type_t<Fn>;
         using Args    = ct::args_t<Fn, std::tuple>;
@@ -52,8 +51,7 @@ public:
         if constexpr (std::is_pointer_v<Self>) {
             f = std::bind(fn, self, std::placeholders::_1);
         } else {
-            constexpr auto has_get = hana::is_valid([](auto&& obj) -> decltype(obj.get()) {});
-            BOOST_HANA_CONSTANT_CHECK(has_get(self));
+            static_assert(cc::has_member_get_v<Self>, "Expect std::shared_ptr or std::unique_ptr");
             auto raw = self.get();
             f        = std::bind(fn, raw, std::placeholders::_1);
         }

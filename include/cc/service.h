@@ -8,7 +8,6 @@
 #include <unordered_map>
 #include <boost/callable_traits.hpp>
 #include <boost/core/demangle.hpp>
-#include <boost/hana.hpp>
 #include <cc/type_traits.h>
 #include <cc/util.h>
 
@@ -63,9 +62,7 @@ public:
           if constexpr (std::is_pointer_v<Cls>) {
               return (obj->*mf)(std::forward<decltype(args)>(args)...);
           } else {
-              static constexpr auto has_get =
-                  boost::hana::is_valid([](auto&& obj) -> decltype(obj.get()) {});
-              BOOST_HANA_CONSTANT_CHECK(has_get(obj));
+              static_assert(cc::has_member_get_v<Cls>, "Cls expect smart pointer.");
               auto origin = obj.get();
               return (origin->*mf)(std::forward<decltype(args)>(args)...);
           }

@@ -7,25 +7,19 @@
 #include <fmt/core.h>
 #include <fmt/ranges.h>
 
-// clang-format off
 struct user_t {
-    BOOST_HANA_DEFINE_STRUCT(user_t,
-        (std::optional<int>, id),
-        (std::string, name),
-        (int, age));
+    std::optional<int> id;
+    std::string name;
+    int age;
 };
 
 struct cnt_result_t {
-    BOOST_HANA_DEFINE_STRUCT(cnt_result_t,
-        (int, cnt));
+    int cnt;
 };
 
 struct user_query_option_t {
-  std::optional<std::string> name;
+    std::optional<std::string> name;
 };
-
-BOOST_HANA_ADAPT_STRUCT(user_query_option_t, name);
-// clang-format on
 
 int main() {
     fmt::print("version: {}\n", sqlite3_version);

@@ -46,7 +46,7 @@ public:
             try {
                 auto nbytes = co_await socket.async_receive_from(asio::buffer(data), sender_endpoint,
                                                                  asio::use_awaitable);
-                LOGI("recv: {}", std::string_view(data.begin(), nbytes));
+                LOGI("recv: {}", std::string_view((const char*)(&*data.begin()), nbytes));
             } catch (const boost::system::system_error& e) {
                 auto ec = e.code();
                 if (GSL_LIKELY(ec == asio::error::operation_aborted

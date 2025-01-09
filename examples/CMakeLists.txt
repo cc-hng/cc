@@ -20,7 +20,7 @@ add_example(ex_wsserver)
 add_example(ex_wsclient)
 add_example(ex_sqlite3)
 add_example(ex_signal)
-add_example(ex_process)
+# add_example(ex_process)
 add_example(ex_service)
 
 add_example(ex_udp_client)

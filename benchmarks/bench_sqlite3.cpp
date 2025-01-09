@@ -1,17 +1,13 @@
 #ifdef CC_WITH_SQLITE3
 
 #    include "common.h"
-#    include <boost/hana.hpp>
 #    include <cc/sqlite3.h>
 #    include <fmt/core.h>
 
-// clang-format off
 struct user_t {
-    BOOST_HANA_DEFINE_STRUCT(user_t,
-        (std::string, name),
-        (int, age));
+    std::string name;
+    int age;
 };
-// clang-format on
 
 static cc::Sqlite3pp<> kSqlConn;
 
@@ -44,9 +40,8 @@ static void bench_sqlite3(bench::Bench& b) {
         auto r = kSqlConn.execute<user_t>("select * from user where name=?", "A333");
         bench::doNotOptimizeAway(r);
     });
-    b.run("insert", [&] {
-        kSqlConn.execute("insert into user(name, age) values (?, ?)", "B111", 111);
-    });
+    b.run("insert",
+          [&] { kSqlConn.execute("insert into user(name, age) values (?, ?)", "B111", 111); });
 }
 
 BENCHMARK_REGISTE(bench_sqlite3);

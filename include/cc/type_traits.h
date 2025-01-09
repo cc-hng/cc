@@ -11,6 +11,23 @@
 #include <variant>
 #include <vector>
 
+#define CC_HAS_MEMBER(member)                                                                 \
+    template <typename T, typename... Args>                                                   \
+    struct has_member_##member {                                                              \
+    private:                                                                                  \
+        template <typename U>                                                                 \
+        static auto Check(int)                                                                \
+            -> decltype(std::declval<U>().member(std::declval<Args>()...), std::true_type()); \
+        template <typename U>                                                                 \
+        static std::false_type Check(...);                                                    \
+                                                                                              \
+    public:                                                                                   \
+        enum { value = std::is_same<decltype(Check<T>(0)), std::true_type>::value };          \
+    };                                                                                        \
+                                                                                              \
+    template <typename F, typename... Args>                                                   \
+    constexpr bool has_member_##member##_v = has_member_##member<F, Args...>::value;
+
 namespace boost {
 namespace asio {
 template <typename T, typename Executor>
@@ -166,5 +183,8 @@ struct in_variant<T, std::variant<Head, Args...>>
 
 template <typename T, typename Variant>
 constexpr bool in_variant_v = in_variant<T, Variant>::value;
+
+// has_member
+CC_HAS_MEMBER(get)
 
 }  // namespace cc

@@ -1,10 +1,6 @@
 {
   "version": 6,
-  "cmakeMinimumRequired": {
-    "major": 3,
-    "minor": 24,
-    "patch": 0
-  },
+  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
   "configurePresets": [
     {
       "name": "base",
@@ -16,6 +12,7 @@
         "CPACK_DEBIAN_PACKAGE_MAINTAINER": "cc <cc@l2x.top>",
         "CPACK_DEBIAN_PACKAGE_NAME": "demo",
         "CPACK_DEBIAN_PACKAGE_DEPENDS": "",
+        "BOOST_INCLUDE_LIBRARIES": "process",
         "CMAKE_BUILD_TYPE": "Release"
       }
     },
@@ -26,11 +23,11 @@
         "CPACK_DEBIAN_PACKAGE_ARCHITECTURE": "amd64",
         "CPACK_PACKAGING_INSTALL_PREFIX": "/opt/my/amd64",
         "CMAKE_INSTALL_PREFIX": "/opt/my/amd64",
+        "CC_ENABLE_IO_URING": "ON",
+        "CC_ENABLE_TSAN": "OFF",
         "CMAKE_BUILD_TYPE": "RelWithDebInfo"
       },
-      "inherits": [
-        "base"
-      ]
+      "inherits": [ "base" ]
     },
     {
       "name": "aarch64",
@@ -40,21 +37,16 @@
         "CC_ENABLE_IO_URING": "OFF",
         "CMAKE_INSTALL_PREFIX": "/opt/my/aarch64"
       },
-      "inherits": [
-        "base"
-      ]
+      "inherits": [ "base" ]
     },
     {
       "name": "arm",
       "toolchainFile": "/opt/gcc/toolchains/arm-none-linux.toolchain.cmake",
       "cacheVariables": {
         "CPACK_PACKAGING_INSTALL_PREFIX": "/",
-        "CC_ENABLE_IO_URING": "OFF",
         "CMAKE_INSTALL_PREFIX": "/opt/my/arm32"
       },
-      "inherits": [
-        "base"
-      ]
+      "inherits": [ "base" ]
     }
   ],
   "buildPresets": [
@@ -83,18 +75,9 @@
     {
       "name": "default",
       "steps": [
-        {
-          "type": "configure",
-          "name": "default"
-        },
-        {
-          "type": "build",
-          "name": "default"
-        },
-        {
-          "type": "test",
-          "name": "default"
-        }
+        { "type": "configure", "name": "default" },
+        { "type": "build", "name": "default" },
+        { "type": "test", "name": "default" }
       ]
     }
   ]

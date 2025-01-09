@@ -10,16 +10,14 @@
 #include <string_view>
 #include <unordered_map>
 #include <boost/core/noncopyable.hpp>
-#include <boost/hana.hpp>
 #include <cc/type_traits.h>
 #include <cc/util.h>
+#include <field_reflection.hpp>  // cpp_yyjson
 #include <gsl/gsl>
 #include <sqlite3.h>
 #include <stdint.h>
 
 namespace cc {
-
-namespace hana = boost::hana;
 
 namespace detail {
 
@@ -29,6 +27,9 @@ constexpr bool is_array_v =
 
 template <typename T>
 constexpr bool is_object_v = cc::is_map_v<T> || cc::is_unordered_map_v<T>;
+
+template <typename T>
+constexpr bool is_struct_v = std::is_class_v<T> && !std::is_union_v<T>;
 
 template <typename T>
 struct sqlite3_type {
@@ -42,7 +43,7 @@ struct sqlite3_type {
             return "INTEGER";
         } else if constexpr (std::is_same_v<T, std::vector<char>>) {
             return "BLOB";
-        } else if constexpr (is_array_v<T> || is_object_v<T> || hana::Struct<T>::value) {
+        } else if constexpr (is_array_v<T> || is_object_v<T>) {
             return "JSON";
         } else {
             return "TEXT";
@@ -244,6 +245,7 @@ private:
         // 执行SQL语句并遍历结果集
         if constexpr (is_tuple_v<R>) {
             std::vector<R> ret;
+            ret.reserve(16);
             while ((res = sqlite3_step(vm)) == SQLITE_ROW) {
                 R e;
                 auto f = [&](auto&... e0) {
@@ -260,8 +262,9 @@ private:
 
             sqlite3_finalize(vm);
             return ret;
-        } else if constexpr (hana::Struct<R>::value) {
+        } else if constexpr (detail::is_struct_v<R>) {
             std::vector<R> ret;
+            ret.reserve(16);
             std::unordered_map<std::string, int> colname;
             while ((res = sqlite3_step(vm)) == SQLITE_ROW) {
                 if (colname.empty()) {
@@ -272,12 +275,10 @@ private:
                 }
 
                 R e;
-                hana::for_each(hana::keys(e), [&](const auto& key) {
-                    auto keyname = hana::to<char const*>(key);
-                    auto& member = hana::at_key(e, key);
-                    using Member = std::decay_t<decltype(member)>;
-                    int idx      = colname.at(keyname);
-                    sqlite3pp_column<Member>(vm, idx, member);
+                field_reflection::for_each_field(e, [&](std::string_view k, auto& v) {
+                    using Member = std::decay_t<decltype(v)>;
+                    int idx      = colname.at(std::string(k));
+                    sqlite3pp_column<Member>(vm, idx, v);
                 });
                 ret.emplace_back((R&&)e);
             }

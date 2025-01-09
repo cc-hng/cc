@@ -1,4 +1,3 @@
-#include <boost/hana.hpp>
 #include <cc/value.h>
 #include <gtest/gtest.h>
 

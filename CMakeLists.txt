@@ -88,7 +88,7 @@ endif()
 
 find_package(Threads REQUIRED)
 
-set(BOOST_INCLUDE_LIBRARIES "core;asio;beast;url;callable_traits;${BOOST_INCLUDE_LIBRARIES}")
+list(APPEND BOOST_INCLUDE_LIBRARIES "core;asio;beast;url;callable_traits")
 cpm_add_package(
   NAME Boost
   VERSION 1.86.0 # Versions less than 1.85.0 may need patches for installation targets.

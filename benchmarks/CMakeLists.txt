@@ -16,7 +16,7 @@ fetch_data(canada.json https://github.com/miloyip/nativejson-benchmark/raw/maste
 fetch_data(citm_catalog.json https://github.com/miloyip/nativejson-benchmark/raw/master/data/citm_catalog.json)
 fetch_data(twitter.json https://raw.githubusercontent.com/miloyip/nativejson-benchmark/master/data/twitter.json)
 
-cpm_add_package("gh:nlohmann/json#v3.11.3")
+CPMAddPackage("gh:nlohmann/json#v3.11.3")
 
 # Add executable
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/*.cpp")

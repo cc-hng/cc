@@ -6,8 +6,8 @@
 #include <shared_mutex>
 #include <typeinfo>
 #include <unordered_map>
+#include <boost/asio.hpp>
 #include <boost/callable_traits.hpp>
-#include <boost/core/demangle.hpp>
 #include <cc/type_traits.h>
 #include <cc/util.h>
 
@@ -27,11 +27,6 @@ class Functor {
     std::string return_type_;
     std::any function_;
 
-    template <typename Signature>
-    static std::string signature_tostring() {
-        return boost::core::demangle(typeid(Signature).name());
-    }
-
     template <typename Fn>
     static auto make_copyable_function(Fn&& f) {
         using DF = std::decay_t<Fn>;
@@ -47,8 +42,8 @@ public:
         typename F,
         typename = std::enable_if_t<!std::is_member_function_pointer_v<F> && !std::is_same_v<F, Functor>>>  // clang-format on
     Functor(F&& f)
-      : signature_(signature_tostring<ct::function_type_t<F>>())
-      , return_type_(signature_tostring<ct::return_type_t<F>>())
+      : signature_(type_name<ct::function_type_t<F>>())
+      , return_type_(type_name<ct::return_type_t<F>>())
       , function_(std::function<ct::function_type_t<F>>{std::forward<F>(f)}) {}
 
     // clang-format off
@@ -75,14 +70,14 @@ public:
 
     template <typename R>
     bool check_return_type() const {
-        return return_type_ == signature_tostring<R>();
+        return return_type_ == type_name<R>();
     }
 
     template <typename R, typename... Args>
     R operator()(Args... args) const {
-        if (signature_ != signature_tostring<R(Args...)>()) {
+        if (signature_ != type_name<R(Args...)>()) {
             throw std::runtime_error("Signature dismatch!!! register=" + signature_
-                                     + ", current=" + signature_tostring<R(Args...)>());
+                                     + ", current=" + type_name<R(Args...)>());
         }
 
         const auto* f = std::any_cast<std::function<R(Args...)>>(&function_);
@@ -156,8 +151,9 @@ public:
     }
 
     template <typename R, typename... Args>
-    asio::task<R> co_call(std::string_view svc, Args... args) const {
-        co_return co_await call<asio::task<R>, Args...>(svc, args...);
+    boost::asio::awaitable<R>  //
+    co_call(std::string_view svc, Args... args) const {
+        co_return co_await call<boost::asio::awaitable<R>, Args...>(svc, args...);
     }
 
     // clang-format off

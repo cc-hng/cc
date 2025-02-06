@@ -120,6 +120,15 @@ public:
         }
     }
 
+    void flush() {
+        WriteLock<MutexPolicy> _lck(mtx_);
+        using row_t = std::tuple<std::string>;
+        auto r      = unsafe_execute<row_t>("PRAGMA journal_mode");
+        auto mode   = std::get<0>(r[0]);
+        unsafe_execute("PRAGMA journal_mode=DELETE;");
+        unsafe_execute("PRAGMA journal_mode=" + mode + ";");
+    }
+
     decltype(auto) make_lock() { return std::make_unique<WriteLock<MutexPolicy>>(mtx_); }
 
     template <typename R = void, typename... Args>

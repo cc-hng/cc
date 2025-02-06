@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdexcept>
+#include <boost/core/demangle.hpp>
 #include <boost/core/noncopyable.hpp>
 #include <gsl/gsl>
 
@@ -43,6 +44,18 @@ inline void set_threadname(const char* name) {
 #ifdef __linux__
     pthread_setname_np(pthread_self(), name);
 #endif
+}
+
+template <typename... Args>
+std::string type_name() {
+    using Signature = void(Args...);
+    auto s          = boost::core::demangle(typeid(Signature).name());
+    if constexpr (sizeof...(Args) == 1) {
+        int len = s.size();
+        return s.substr(6, len - 7);
+    } else {
+        return s.substr(5);
+    }
 }
 
 }  // namespace cc

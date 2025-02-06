@@ -22,7 +22,3 @@ file(DOWNLOAD
 )
 
 include(${CPM_DOWNLOAD_LOCATION})
-
-function(cpm_add_package)
-  CPMAddPackage(${ARGN})
-endfunction()

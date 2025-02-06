@@ -89,7 +89,7 @@ endif()
 find_package(Threads REQUIRED)
 
 list(APPEND BOOST_INCLUDE_LIBRARIES "core;asio;beast;url;callable_traits")
-cpm_add_package(
+CPMAddPackage(
   NAME Boost
   VERSION 1.86.0 # Versions less than 1.85.0 may need patches for installation targets.
   URL https://github.com/boostorg/boost/releases/download/boost-1.86.0/boost-1.86.0-cmake.tar.xz
@@ -97,28 +97,28 @@ cpm_add_package(
   OPTIONS "BOOST_ENABLE_CMAKE ON" "BOOST_SKIP_INSTALL_RULES ON" # Set `OFF` for installation
           "BUILD_SHARED_LIBS OFF" "BUILD_TESTING OFF" "BUILD_GMOCK OFF"
 )
-cpm_add_package("gh:fmtlib/fmt#11.0.2")
-cpm_add_package("gh:microsoft/GSL#v4.1.0")
+CPMAddPackage("gh:fmtlib/fmt#11.0.2")
+CPMAddPackage("gh:microsoft/GSL#v4.1.0")
 
 # google re2
-cpm_add_package(
+CPMAddPackage(
   NAME absl
   GIT_TAG  20240722.0
   GITHUB_REPOSITORY abseil/abseil-cpp
   OPTIONS "ABSL_PROPAGATE_CXX_STD ON" "ABSL_ENABLE_INSTALL ON"
 )
-cpm_add_package("gh:google/re2#2024-07-02")
+CPMAddPackage("gh:google/re2#2024-07-02")
 
 # yyjson
-cpm_add_package(
+CPMAddPackage(
   NAME yyjson
   GIT_TAG 0.10.0
   GITHUB_REPOSITORY ibireme/yyjson
   OPTIONS "YYJSON_ENABLE_FASTMATH ON"
 )
 
-cpm_add_package("gh:Neargye/nameof#v0.10.4")
-cpm_add_package(
+CPMAddPackage("gh:Neargye/nameof#v0.10.4")
+CPMAddPackage(
   NAME cpp_yyjson
   GIT_TAG v0.6.0
   GITHUB_REPOSITORY yosh-matsuda/cpp-yyjson
@@ -126,19 +126,19 @@ cpm_add_package(
 )
 
 if(CC_BUILD_TESTS)
-  cpm_add_package("gh:google/googletest#v1.15.2")
+  CPMAddPackage("gh:google/googletest#v1.15.2")
 endif()
 
 if(CC_BUILD_BENCHES)
-  cpm_add_package("gh:martinus/nanobench#v4.3.11")
+  CPMAddPackage("gh:martinus/nanobench#v4.3.11")
 endif()
 
 if(CC_WITH_SQLITE3)
-  cpm_add_package("gh:cc-hng/sqlite3#v3.40.0")
+  CPMAddPackage("gh:cc-hng/sqlite3#v3.40.0")
 endif()
 
 if(CC_BUILD_EXAMPLES)
-  cpm_add_package(
+  CPMAddPackage(
     NAME spdlog
     GIT_TAG v1.15.0
     GITHUB_REPOSITORY gabime/spdlog
@@ -150,12 +150,12 @@ endif()
 
 if(CC_ENABLE_COROUTINE)
   set(CMAKE_CXX_STANDARD 20)
-  cpm_add_package("gh:cc-hng/std_coroutines#v1.0.3")
+  CPMAddPackage("gh:cc-hng/std_coroutines#v1.0.3")
 endif()
 
-cpm_add_package("gh:TheLartians/Format.cmake@1.8.3")
-cpm_add_package("gh:TheLartians/PackageProject.cmake@1.13.0")
-# cpm_add_package("gh:aminya/project_options@0.36.2")
+CPMAddPackage("gh:TheLartians/Format.cmake@1.8.3")
+CPMAddPackage("gh:TheLartians/PackageProject.cmake@1.13.0")
+# CPMAddPackage("gh:aminya/project_options@0.36.2")
 
 
 _restore_variable(DESTINATION CMAKE_CXX_FLAGS_DEBUG BACKUP CMAKE_CXX_FLAGS_DEBUG_BAK)

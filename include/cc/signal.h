@@ -33,11 +33,6 @@ struct adjust_signature<R(Args...)> {
     using type = R(const std::decay_t<Args>&...);
 };
 
-template <typename Signature>
-std::string type_name() {
-    return boost::core::demangle(typeid(Signature).name());
-}
-
 // clang-format off
 template <
     typename MutexPolicy = NonMutex,
@@ -151,7 +146,7 @@ public:
         using Signature = typename detail::adjust_signature<void(Args...)>::type;
         std::string topic0(topic);
         if (topic_types_.count(topic0)) {
-            auto typname = detail::type_name<Signature>();
+            auto typname = type_name<Signature>();
             if (topic_types_.at(topic0) != typname) {
                 throw std::runtime_error("Signal::pub type dismatch. registed="
                                          + topic_types_.at(topic0) + ", current=" + typname);
@@ -215,7 +210,7 @@ private:
     template <typename Signature>
     handler_t sub_impl(std::string_view topic, std::function<Signature>&& f) {
         std::string topic0(topic);
-        auto typname = detail::type_name<Signature>();
+        auto typname = type_name<Signature>();
         if (topic_types_.contains(topic0)) {
             if (typname != topic_types_.at(topic0)) {
                 throw std::runtime_error("Signal::sub type dismatch. before="

@@ -1,8 +1,10 @@
 #pragma once
 
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_DEBUG
 #include <spdlog/spdlog.h>
 
 inline void init_logger() {
+    spdlog::set_level(spdlog::level::debug);
     spdlog::set_pattern(R"(%^%L%$ | %Y-%m-%dT%H:%M:%S.%e | %t | %s:%# | %v)");
 }
 

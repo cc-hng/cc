@@ -39,9 +39,8 @@ decltype(auto) co_wrap(Fn&& fn) {
 
 namespace cc {
 
-// clang-format off
-inline asio::task<void> 
-async_sleep(int ms) {  // clang-format on
+inline asio::task<void>  //
+async_sleep(int ms) {
     if (ms <= 0) {
         co_await asio::post(co_await asio::this_coro::executor, asio::use_awaitable);
     } else {
@@ -49,6 +48,11 @@ async_sleep(int ms) {  // clang-format on
         timer.expires_after(std::chrono::milliseconds(ms));
         co_await timer.async_wait(asio::use_awaitable);
     }
+}
+
+inline asio::task<void>  //
+timeout(int ms) {
+    co_return co_await async_sleep(ms);
 }
 
 /// 在ioc上调度程序f(args...)

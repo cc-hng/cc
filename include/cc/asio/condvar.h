@@ -1,9 +1,9 @@
 #pragma once
 
 #include <functional>
-#include <list>
 #include <memory>
 #include <random>
+#include <vector>
 #include <boost/asio.hpp>
 #include <boost/asio/experimental/awaitable_operators.hpp>
 #include <boost/core/noncopyable.hpp>
@@ -18,8 +18,11 @@ template <
     template <class> class WriterLock = LockGuard
 >  // clang-format on
 class CondVar final : public boost::noncopyable {
+    MutexPolicy mtx_;
+    std::vector<std::function<void()>> handles_;
+
 public:
-    CondVar()  = default;
+    CondVar() { handles_.reserve(4); }
     ~CondVar() = default;
 
     asio::task<void> wait() {
@@ -43,24 +46,38 @@ public:
         co_return v.index() == 0;
     }
 
-    void notify_all() {
-        std::list<std::function<void()>> handles;
+    void notify_all() noexcept {
+        std::vector<std::function<void()>> handles;
         {
             WriterLock<MutexPolicy> _lck{mtx_};
             handles = std::move(handles_);
         }
         for (const auto& fn : handles) {
-            fn();
+            try {
+                fn();
+            } catch (...) {
+                // ignore
+            }
         }
     }
 
-    void notify_one() {
-        WriterLock<MutexPolicy> _lck{mtx_};
-        int offset = random(handles_.size());
-        auto it    = handles_.begin();
-        std::advance(it, offset);
-        (*it)();
-        handles_.erase(it);
+    void notify_one() noexcept {
+        std::function<void()> f = nullptr;
+        do {
+            WriterLock<MutexPolicy> _lck{mtx_};
+            if (handles_.size() > 0) {
+                int offset = random(handles_.size());
+                auto it    = handles_.begin();
+                std::advance(it, offset);
+                f = std::move(*it);
+                handles_.erase(it);
+            }
+        } while (0);
+        try {
+            if (f) f();
+        } catch (...) {
+            // ignore
+        }
     }
 
 private:
@@ -72,15 +89,11 @@ private:
 
     /// @return [0, m)
     static int random(int m) {
-        static std::random_device rd;
-        static std::mt19937 gen = std::mt19937(rd());
+        static thread_local std::random_device rd;
+        static thread_local std::mt19937 gen = std::mt19937(rd());
         std::uniform_int_distribution<> dist(0, m - 1);
         return dist(gen);
     }
-
-private:
-    MutexPolicy mtx_;
-    std::list<std::function<void()>> handles_;
 };
 
 }  // namespace cc

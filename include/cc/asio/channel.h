@@ -60,7 +60,53 @@ struct mpsc_context_t {
         co_return ret;
     }
 };
+
+template <typename T,                                   //
+          typename MutexPolicy        = cc::NonMutex,   //
+          template <class> class Lock = cc::LockGuard>  //
+class OneshotContext {
+    MutexPolicy mtx_;
+    cc::CondVar<MutexPolicy> cv_;
+    bool sent_     = false;
+    bool received_ = false;
+    T val_;
+
+public:
+    template <typename A>
+    void send(A&& a) {
+        do {
+            Lock<MutexPolicy> _lck{mtx_};
+            if (sent_) {
+                throw std::runtime_error("Oneshot channel can only send once");
+            }
+            sent_ = true;
+            val_  = std::forward<A>(a);
+        } while (0);
+        cv_.notify_all();
+    }
+
+    asio::task<T> recv() {
+        do {
+            Lock<MutexPolicy> _lck{mtx_};
+            if (received_) {
+                throw std::runtime_error("Oneshot channel can only receive one value!");
+            }
+            received_ = true;
+
+            if (sent_) {
+                co_return val_;
+            }
+        } while (0);
+
+        co_await cv_.wait();
+        Lock<MutexPolicy> _lck{mtx_};
+        co_return val_;
+    }
+};
+
 }  // namespace detail
+
+namespace mpsc {
 
 template <typename T>
 using Sender = std::shared_ptr<std::function<void(const T&)>>;
@@ -69,7 +115,7 @@ template <typename T>
 using Receiver = std::unique_ptr<std::function<asio::awaitable<std::deque<T>>()>>;
 
 template <typename T, bool threadsafe = true>
-auto make_mpsc() -> std::tuple<Sender<T>, Receiver<T>> {
+auto make() -> std::tuple<Sender<T>, Receiver<T>> {
     using Sender   = Sender<T>;
     using Receiver = Receiver<T>;
 #define MAKE_MPSC_IMPL(ctx)                                                                      \
@@ -93,6 +139,21 @@ auto make_mpsc() -> std::tuple<Sender<T>, Receiver<T>> {
         MAKE_MPSC_IMPL(ctx);
     }
 }
+
+}  // namespace mpsc
+
+namespace oneshot {
+
+template <typename T, bool threadsafe = true>
+auto make() {
+    if constexpr (threadsafe) {
+        return std::make_unique<detail::OneshotContext<T, std::mutex>>();
+    } else {
+        return std::make_unique<detail::OneshotContext<T>>();
+    }
+}
+
+}  // namespace oneshot
 
 }  // namespace chan
 }  // namespace cc

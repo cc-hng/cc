@@ -196,9 +196,10 @@ public:
 #ifdef CC_ENABLE_COROUTINE
 
     template <typename... Ts>
-    std::tuple<handler_t, cc::chan::Receiver<std::tuple<Ts...>>> stream(std::string_view topic) {
+    std::tuple<handler_t, cc::chan::mpsc::Receiver<std::tuple<Ts...>>>
+    stream(std::string_view topic) {
         using R                 = std::tuple<Ts...>;
-        auto [sender, receiver] = cc::chan::make_mpsc<R>();
+        auto [sender, receiver] = cc::chan::mpsc::make<R>();
         auto id =
             sub(topic, [sender0 = sender](Ts... args) { (*sender0)(std::make_tuple(args...)); });
         return std::make_tuple(id, std::move(receiver));

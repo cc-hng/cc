@@ -52,6 +52,30 @@ str_split(std::string_view raw, std::string_view sep) {
     return result;
 }
 
+static bool is_big_helper(var_t v, int max_depth, int& max_size) {
+    if (max_depth <= 0 || max_size <= 0) {
+        return true;
+    }
+    if (v.is_object()) {
+        auto obj = *v.as_object();
+        max_size -= obj.size();
+        for (auto it = obj.begin(); it != obj.end(); ++it) {
+            if (is_big_helper(it->second, max_depth - 1, max_size)) {
+                return true;
+            }
+        }
+    } else if (v.is_array()) {
+        auto list = *v.as_array();
+        max_size -= list.size();
+        for (auto it = list.begin(); it != list.end(); ++it) {
+            if (is_big_helper(*it, max_depth - 1, max_size)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 }  // namespace detail
 
 struct var {
@@ -82,7 +106,7 @@ struct var {
         GSL_ASSUME(false);
     }
 
-    static var_t clone(const var_t& self) {
+    static var_t clone(var_t self) {
         if (self.is_null()) {
             return var_t();
         } else if (self.is_bool()) {
@@ -98,7 +122,7 @@ struct var {
         }
     }
 
-    static bool equal(const var_t& lhs, const var_t& rhs) {
+    static bool equal(var_t lhs, var_t rhs) {
         try {
             if (lhs.is_null()) {
                 return rhs.is_null();
@@ -153,7 +177,7 @@ struct var {
         }
     }
 
-    static void patch(var_t& self, const var_t& rhs, bool strict = true) {
+    static void patch(var_t& self, var_t rhs, bool strict = true) {
         if (!(self.is_object() && rhs.is_object())) {
             throw std::runtime_error("var::patch expect object !!!");
         }
@@ -184,7 +208,7 @@ struct var {
         }
     }
 
-    static void merge(var_t& src, const var_t& dst) {
+    static void merge(var_t& src, var_t dst) {
         if (!(src.is_object() && dst.is_object())) {
             throw std::runtime_error("var::patch expect object !!!");
         }
@@ -372,6 +396,10 @@ struct var {
     template <typename T>
     static void set(var_t& self, std::string_view ks, T&& v) {
         at(self, ks) = std::forward<T>(v);
+    }
+
+    static inline bool is_big(var_t v, int max_depth = 5, int max_obj = 1024) {
+        return detail::is_big_helper(v, max_depth, max_obj);
     }
 };
 

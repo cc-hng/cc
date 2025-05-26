@@ -39,6 +39,21 @@ decltype(auto) co_wrap(Fn&& fn) {
 
 namespace cc {
 
+namespace {
+
+template <typename T>
+struct task_held_type;
+
+template <typename T>
+struct task_held_type<asio::awaitable<T>> {
+    using type = std::decay_t<T>;
+};
+
+template <typename T>
+using task_inner_t = typename task_held_type<T>::type;
+
+}  // namespace
+
 inline asio::task<void>  //
 async_sleep(int ms) {
     if (ms <= 0) {
@@ -61,25 +76,55 @@ timeout(int ms) {
 /// @pragma ioc asio executor
 /// @pragma f 待执行函数
 /// @pragma args... 函数参数
-// clang-format off
 template <typename Context, typename Fn, typename... Args>
-asio::task<cc::result_of_t<Fn(Args...)>>  // clang-format on
-async_schedule(Context& ioc, Fn&& f, Args&&... args) {
-    using Ret = cc::result_of_t<Fn(Args...)>;
+std::enable_if_t<!cc::is_awaitable_v<cc::result_of_t<Fn(Args...)>>,
+                 asio::task<cc::result_of_t<Fn(Args...)>>>  //
+schedule(Context& ioc, Fn&& f, Args&&... args) {
     std::exception_ptr e;
     auto cur_ctx = co_await asio::this_coro::executor;
-    co_await asio::dispatch(asio::bind_executor(ioc.get_executor(), asio::use_awaitable));
-    Ret r;
+    co_await asio::post(asio::bind_executor(ioc.get_executor(), asio::use_awaitable));
     try {
-        r = std::forward<Fn>(f)(std::forward<Args>(args)...);
+        using R = cc::result_of_t<Fn(Args...)>;
+        if constexpr (std::is_void_v<R>) {
+            std::forward<Fn>(f)(std::forward<Args>(args)...);
+            co_await asio::post(asio::bind_executor(cur_ctx, asio::use_awaitable));
+        } else {
+            auto r = std::forward<Fn>(f)(std::forward<Args>(args)...);
+            co_await asio::post(asio::bind_executor(cur_ctx, asio::use_awaitable));
+            co_return r;
+        }
     } catch (...) {
         e = std::current_exception();
     }
-    co_await asio::dispatch(asio::bind_executor(cur_ctx, asio::use_awaitable));
+    co_await asio::post(asio::bind_executor(cur_ctx, asio::use_awaitable));
     if (GSL_UNLIKELY(e)) {
         std::rethrow_exception(e);
     }
-    co_return r;
+}
+
+template <typename Context, typename Fn, typename... Args>
+std::enable_if_t<cc::is_awaitable_v<cc::result_of_t<Fn(Args...)>>,
+                 cc::result_of_t<Fn(Args...)>>  //
+schedule(Context& ioc, Fn&& f, Args&&... args) {
+    std::exception_ptr e;
+    auto cur_ctx = co_await asio::this_coro::executor;
+    co_await asio::post(asio::bind_executor(ioc.get_executor(), asio::use_awaitable));
+    try {
+        if constexpr (std::is_void_v<task_inner_t<cc::result_of_t<Fn(Args...)>>>) {
+            co_await std::forward<Fn>(f)(std::forward<Args>(args)...);
+            co_await asio::post(asio::bind_executor(cur_ctx, asio::use_awaitable));
+        } else {
+            auto r = co_await std::forward<Fn>(f)(std::forward<Args>(args)...);
+            co_await asio::post(asio::bind_executor(cur_ctx, asio::use_awaitable));
+            co_return r;
+        }
+    } catch (...) {
+        e = std::current_exception();
+    }
+    co_await asio::post(asio::bind_executor(cur_ctx, asio::use_awaitable));
+    if (GSL_UNLIKELY(e)) {
+        std::rethrow_exception(e);
+    }
 }
 
 }  // namespace cc

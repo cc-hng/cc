@@ -71,7 +71,28 @@ int main() {
     // asio::co_spawn(ctx, tick(), asio::detached);
     // asio::co_spawn(ctx, tick2(), asio::detached);
 
-    Ap.run();
+    // stop a coroutine
+    asio::cancellation_signal sig;
+    asio::co_spawn(ctx, tick2(), asio::bind_cancellation_slot(sig.slot(), asio::detached));
+    Ap.set_timeout(400, [&] {
+        SPDLOG_INFO("Stop tick2 coroutine.");
+        sig.emit(asio::cancellation_type::all);
+    });
+
+    // schedule
+    asio::thread_pool thpool(1);
+    asio::post(thpool.get_executor(), []() { SPDLOG_INFO("run on thread pool"); });
+    asio::co_spawn(ctx, cc::schedule(thpool, [] { SPDLOG_INFO("Schedule on io_context."); }),
+                   asio::detached);
+    asio::co_spawn(thpool,
+                   cc::schedule(ctx,
+                                []() -> asio::task<void> {
+                                    SPDLOG_INFO("Schedule on io_context(awaitable).");
+                                    co_return;
+                                }),
+                   asio::detached);
+
+    Ap.run(1);
     SPDLOG_INFO("main cost: {}s", stopwatch.elapsed());
     return 0;
 }

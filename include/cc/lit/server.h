@@ -5,6 +5,7 @@
 #include <iostream>
 #include <list>
 #include <memory>
+#include <regex>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -20,7 +21,6 @@
 #include <cc/lit/router.h>
 #include <cc/type_traits.h>
 #include <gsl/gsl>
-#include <re2/re2.h>
 
 namespace cc {
 namespace lit {
@@ -48,12 +48,12 @@ public:
     struct static_router_t {
         std::string mount_point;
         std::string doc_root;
-        std::shared_ptr<re2::RE2> re;
+        std::regex re;
 
         static_router_t(std::string_view _mount_point, std::string_view _doc_root)
           : mount_point(_mount_point)
           , doc_root(_doc_root)
-          , re(new re2::RE2(std::string(_mount_point) + "([\\w\\./-]+)[?#]?.*")) {}
+          , re("^" + std::string(_mount_point) + "([\\w\\./-]+)[?#]?.*$") {}
 
         std::tuple<bool, std::optional<http::message_generator>>
         operator()(const http::request<http::string_body>& req) const {
@@ -64,12 +64,13 @@ public:
             }
 
             auto target = req.target();
-            std::string match;
-            if (GSL_UNLIKELY(!RE2::FullMatch(target, *re, &match))) {
+            auto p      = static_cast<const char*>(target.data());
+            std::cmatch cm;
+            if (!std::regex_match(p, p + target.size(), cm, re)) {
                 return std::make_tuple(false, std::nullopt);
             }
 
-            auto path  = path_cat(doc_root, match);
+            auto path  = path_cat(doc_root, cm[1].str());
             auto path0 = path;
             if (path.back() == '/') {
                 path.append("index.html");
@@ -103,8 +104,8 @@ public:
                         std::string name = entry.path().filename().string();
                         std::string back = fs::is_directory(entry) ? "/" : "";
 
-                        oss << "            <li><a href=\"" << mount_point << match << name << back
-                            << "\">" << name << back << "</a></li>\n";
+                        oss << "            <li><a href=\"" << mount_point << cm[1].str() << name
+                            << back << "\">" << name << back << "</a></li>\n";
                     }
 
                 } catch (const std::exception& e) {

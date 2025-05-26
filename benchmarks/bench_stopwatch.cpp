@@ -1,6 +1,4 @@
 #include "common.h"
-#include <absl/time/clock.h>
-#include <absl/time/time.h>
 #include <cc/stopwatch.h>
 #include <time.h>
 
@@ -32,10 +30,6 @@ static void bench_stopwatch(bench::Bench& b) {
         bench::doNotOptimizeAway(tv);
     });
 #endif
-    b.run("absl::time", [] {
-        auto now = absl::GetCurrentTimeNanos();
-        bench::doNotOptimizeAway(now);
-    });
     b.minEpochIterations(old);
 }
 

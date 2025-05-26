@@ -1,6 +1,6 @@
-#include "cc/json.h"
 #include <map>
 #include <string>
+#include <cc/json.h>
 #include <gtest/gtest.h>
 
 static std::string car_json = R"(

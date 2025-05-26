@@ -100,15 +100,6 @@ CPMAddPackage(
 CPMAddPackage("gh:fmtlib/fmt#11.0.2")
 CPMAddPackage("gh:microsoft/GSL#v4.1.0")
 
-# google re2
-CPMAddPackage(
-  NAME absl
-  GIT_TAG  20240722.0
-  GITHUB_REPOSITORY abseil/abseil-cpp
-  OPTIONS "ABSL_PROPAGATE_CXX_STD ON" "ABSL_ENABLE_INSTALL ON"
-)
-CPMAddPackage("gh:google/re2#2024-07-02")
-
 # yyjson
 CPMAddPackage(
   NAME yyjson
@@ -170,7 +161,6 @@ target_link_libraries(
       Microsoft.GSL::GSL fmt::fmt Threads::Threads
       Boost::headers Boost::core Boost::asio
       Boost::url Boost::callable_traits Boost::beast
-      re2
       yyjson cpp_yyjson::cpp_yyjson)
 target_compile_definitions(
   3rd_dependencies INTERFACE

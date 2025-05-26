@@ -1,13 +1,12 @@
 #pragma once
 
 #include <functional>
+#include <regex>
 #include <tuple>
-#include <variant>
 #include <vector>
 #include <boost/core/noncopyable.hpp>
 #include <cc/lit/object.h>
 #include <gsl/gsl>
-#include <re2/re2.h>
 
 namespace cc {
 namespace lit {
@@ -135,7 +134,7 @@ public:
                                                      + path.data());
                         }
 
-                        if (end_pos == next_end_pos) {
+                        if (next_end_pos != std::string_view::npos && end_pos == next_end_pos) {
                             regex.replace(start_pos, end_pos - start_pos + 1, "(.+)");
                         } else {
                             regex.replace(start_pos, end_pos - start_pos, "([^/\\s]+)");
@@ -146,7 +145,11 @@ public:
                 }
                 regex_str_ = regex;
                 if (is_regex) {
-                    re_ = std::make_shared<re2::RE2>(regex);
+                    regex = "^" + regex;
+                    if (whole) {
+                        regex += "$";
+                    }
+                    re_ = std::make_shared<std::regex>(regex);
                 }
             }
 
@@ -155,28 +158,27 @@ public:
                     return std::make_tuple(std::string_view(regex_str_) == raw, nullptr);
                 }
 
-                int len = keys_.size();
-                std::vector<std::string> matches(len);
-                std::vector<RE2::Arg> args(len);
-                std::vector<RE2::Arg*> pargs(len);
-                for (int i = 0; i < len; i++) {
-                    args[i]  = &matches[i];
-                    pargs[i] = &args[i];
+                std::cmatch cm;
+                auto p = static_cast<const char*>(raw.data());
+                if (!std::regex_match(p, p + raw.size(), cm, *re_)) {
+                    return std::make_tuple(false, nullptr);
                 }
-                if (!RE2::FullMatchN(raw, *re_, pargs.data(), len)) {
+
+                if (cm.size() - 1 != keys_.size()) {
                     return std::make_tuple(false, nullptr);
                 }
 
                 auto params = std::make_shared<std::unordered_map<std::string, std::string>>();
-                for (int i = 0; i < len; i++) {
-                    params->emplace(keys_.at(i), std::move(matches.at(i)));
+                int i       = 1;
+                for (auto key : keys_) {
+                    params->emplace(std::move(key), cm[i++].str());
                 }
                 return std::make_tuple(true, params);
             }
 
         private:
             std::string regex_str_;
-            std::shared_ptr<re2::RE2> re_ = nullptr;
+            std::shared_ptr<std::regex> re_ = nullptr;
             std::vector<std::string> keys_;
         };
 

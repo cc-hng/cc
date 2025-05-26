@@ -2,13 +2,13 @@
 
 #include <functional>
 #include <memory>
-#include <random>
 #include <vector>
 #include <boost/asio.hpp>
 #include <boost/asio/experimental/awaitable_operators.hpp>
 #include <boost/core/noncopyable.hpp>
 #include <cc/asio/helper.h>
 #include <cc/util.h>
+#include <time.h>
 
 namespace cc {
 
@@ -88,12 +88,7 @@ private:
     }
 
     /// @return [0, m)
-    static int random(int m) {
-        static thread_local std::random_device rd;
-        static thread_local std::mt19937 gen = std::mt19937(rd());
-        std::uniform_int_distribution<> dist(0, m - 1);
-        return dist(gen);
-    }
+    static inline int random(int m) { return time(NULL) / m; }
 };
 
 }  // namespace cc

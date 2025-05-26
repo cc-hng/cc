@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
+set(BUILD_SHARED_LIBS OFF)
 
 # # Default to -O2 on release builds.
 # if(CMAKE_CXX_FLAGS_RELEASE MATCHES "-O3")
@@ -16,7 +17,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
 # being a cross-platform target, we enforce standards conformance on MSVC all compile:
 # https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_COMPILER_ID.html
-if(MSVC)
+if (LINUX)
+  if (NOT CMAKE_CROSSCOMPILING)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
+  endif()
+elseif(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /permissive-")
 endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")

@@ -42,7 +42,7 @@ void on_pos(Point3D pos) {
     LOGI("[unknown] pos: {}", pos);
 }
 
-asio::awaitable<void> async_background_task() {
+net::awaitable<void> async_background_task() {
     auto [_, stream] = kSig.stream<int, int>("vel");
     for (;;) {
         auto items = co_await (*stream)();
@@ -77,7 +77,7 @@ int main() {
     signal.sub("/on_val", on_val2);
 
     // auto& ctx = cc::AsioPool::instance().get_io_context();
-    // asio::co_spawn(ctx, async_background_task(), asio::detached);
+    // net::co_spawn(ctx, async_background_task(), net::detached);
 
     // player by shared_ptr
     {

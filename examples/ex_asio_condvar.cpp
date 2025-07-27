@@ -11,22 +11,22 @@ public:
 
     void run() {
         auto& ctx = ap_.get_io_context();
-        asio::co_spawn(ctx, task1(), asio::detached);
-        asio::co_spawn(ctx, task2(), asio::detached);
+        net::co_spawn(ctx, task1(), net::detached);
+        net::co_spawn(ctx, task2(), net::detached);
         ap_.set_timeout(3000, [this] { cv_.notify_all(); });
         ap_.set_timeout(5000, [this] { cv_.notify_all(); });
         ap_.run();
     }
 
 private:
-    asio::task<void> task1() {
+    net::task<void> task1() {
         co_await cv_.wait();
         SPDLOG_INFO("task1 1");
         co_await cv_.wait();
         SPDLOG_INFO("task1 2");
     }
 
-    asio::task<void> task2() {
+    net::task<void> task2() {
         auto r = co_await cv_.wait_until(1500);
         SPDLOG_INFO("task2 timeout: {}", r);
     }

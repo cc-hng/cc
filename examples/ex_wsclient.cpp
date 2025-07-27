@@ -10,10 +10,10 @@ namespace beast = boost::beast;
 static auto& g_asp = cc::AsioPool::instance();
 
 // clang-format off
-asio::task<void>  // clang-format on
+net::task<void>  // clang-format on
 do_session(std::string host, int port) {
-    auto ctx      = co_await asio::this_coro::executor;
-    auto resolver = asio::ip::tcp::resolver{ctx};
+    auto ctx      = co_await net::this_coro::executor;
+    auto resolver = net::ip::tcp::resolver{ctx};
     auto stream   = beast::websocket::stream<beast::tcp_stream>{ctx};
 
     auto const results = co_await resolver.async_resolve(host, std::to_string(port));
@@ -46,7 +46,7 @@ do_session(std::string host, int port) {
     for (;;) {
         LOGI("send: ping");
         // Send the message
-        co_await stream.async_write(asio::buffer("ping"));
+        co_await stream.async_write(net::buffer("ping"));
 
         // This buffer will hold the incoming message
         beast::flat_buffer buffer;

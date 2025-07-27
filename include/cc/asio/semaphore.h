@@ -5,18 +5,17 @@
 #include <list>
 #include <boost/asio.hpp>
 #include <boost/core/noncopyable.hpp>
+#include <cc/asio/helper.h>
 #include <cc/util.h>
 
 namespace cc {
-
-namespace asio = boost::asio;
 
 template <typename MutexPolicy = NonMutex, template <class> class WriterLock = LockGuard>
 class Semaphore final : public boost::noncopyable {
 public:
     Semaphore(std::size_t init_permits) : permits_(init_permits) {}
 
-    asio::awaitable<void> acquire() {
+    net::awaitable<void> acquire() {
         do {
             WriterLock<MutexPolicy> _lck{mtx_};
             if (permits_ > 0) {
@@ -25,17 +24,17 @@ public:
             }
         } while (0);
 
-        using time_point = asio::steady_timer::clock_type::time_point;
-        std::shared_ptr<asio::steady_timer> timer =
-            std::make_shared<asio::steady_timer>(co_await asio::this_coro::executor);
+        using time_point = net::steady_timer::clock_type::time_point;
+        std::shared_ptr<net::steady_timer> timer =
+            std::make_shared<net::steady_timer>(co_await net::this_coro::executor);
         timer->expires_at(time_point::max());
-        std::weak_ptr<asio::steady_timer> weak_timer(timer);
+        std::weak_ptr<net::steady_timer> weak_timer(timer);
         add_handle([weak_timer] {
             if (auto timer = weak_timer.lock()) {
                 timer->cancel();
             }
         });
-        co_await timer->async_wait(asio::as_tuple(asio::use_awaitable));
+        co_await timer->async_wait(net::as_tuple(net::use_awaitable));
     }
 
     inline void release() {

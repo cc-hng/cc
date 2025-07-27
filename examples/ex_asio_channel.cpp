@@ -6,7 +6,7 @@ namespace mpsc = cc::chan::mpsc;
 
 #define N 3
 
-asio::task<void> producer(mpsc::Sender<int> sender) {
+net::task<void> producer(mpsc::Sender<int> sender) {
     for (int i = 0; i < N; i++) {
         co_await cc::async_sleep(1000);
         SPDLOG_INFO("[producer] send {}", i + 1);
@@ -16,7 +16,7 @@ asio::task<void> producer(mpsc::Sender<int> sender) {
     sender.reset();
 }
 
-asio::task<void> consumer(mpsc::Receiver<int> receiver) {
+net::task<void> consumer(mpsc::Receiver<int> receiver) {
     for (;;) {
         // 模拟长时间任务
         // co_await cc::async_sleep(1500);
@@ -41,8 +41,8 @@ int main() {
     SPDLOG_INFO("--- begin ---");
     auto [sender, receiver] = mpsc::make<int>();
 
-    asio::co_spawn(ctx, producer(sender), asio::detached);
-    asio::co_spawn(ctx, consumer(std::move(receiver)), asio::detached);
+    net::co_spawn(ctx, producer(sender), net::detached);
+    net::co_spawn(ctx, consumer(std::move(receiver)), net::detached);
 
     sender.reset();
 

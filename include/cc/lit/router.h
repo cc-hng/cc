@@ -2,42 +2,50 @@
 
 #include <functional>
 #include <regex>
-#include <tuple>
+#include <string_view>
+#include <variant>
 #include <vector>
-#include <boost/core/noncopyable.hpp>
+#include <boost/asio.hpp>
+#include <boost/beast.hpp>
+#include <boost/noncopyable.hpp>
 #include <cc/lit/object.h>
 #include <gsl/gsl>
 
 namespace cc {
 namespace lit {
 
-// template <typename Body = http::string_body>
-class Router final : public boost::noncopyable {
+template <                                    //
+    typename ReqBody  = http_request_body_t,  //
+    typename RespBody = http_response_body_t>
+class Router : boost::noncopyable {
 public:
-    using request_type  = http_request_t;
-    using response_type = http_response_t;
-    using kv_t          = http_request_t::kv_t;
+    using request_type  = http_request_t<ReqBody>;
+    using response_type = http_response_t<RespBody>;
+    using kv_t          = std::optional<typename request_type::kv_t>;
+
+    using next_handler  = http_next_handler;
+    using route_handler = http_route_handler<ReqBody, RespBody>;
 
 public:
-    Router() { handlers_.reserve(32); }
+    Router() { handlers_.reserve(64); }
 
     ~Router() {}
 
-    inline auto& use(http_handle_t&& h) {
-        handlers_.emplace_back((http_handle_t&&)h);
+    Router& use(route_handler&& h) {
+        handlers_.emplace_back((route_handler&&)h);
         return *this;
     }
 
-    auto& route(http::verb method, std::string_view path, http_handle_t&& handler) {
+    Router& route(http::verb method, std::string_view path, const route_handler& h) {
         class Functor {
         public:
-            Functor(http::verb method, std::string_view path, http_handle_t&& handler)
+            Functor(http::verb method, std::string_view path, const route_handler& handler)
               : method_(method)
               , parse_path_(compile_route(path))
-              , handler_((http_handle_t&&)handler) {}
+              , handler_(handler) {}
 
-            boost::asio::awaitable<void>
-            operator()(const request_type& req, response_type& resp, const http_next_handle_t& go) {
+            net::awaitable<void>
+            operator()(const request_type& req, response_type& resp, const next_handler& go) {
                 if (method_ != (http::verb)-1) {
                     if (req->method() != method_) {
                         co_return co_await go();
@@ -49,59 +57,30 @@ public:
                     co_return co_await go();
                 }
 
-                req.params = params;
+                req.params = std::move(params);
                 co_await handler_(req, resp, go);
             }
 
         private:
             http::verb method_;
             std::function<std::tuple<bool, kv_t>(std::string_view)> parse_path_;
-            http_handle_t handler_;
+            route_handler handler_;
         };
 
-        use(Functor(method, path, (http_handle_t&&)handler));
-        return *this;
+        return use(Functor(method, path, h));
     }
 
-    boost::asio::awaitable<void>
-    run(const request_type& req, response_type& resp, const http_next_handle_t& go) {
+    net::awaitable<void>  //
+    process(const request_type& req, response_type& resp, const next_handler& go) {
         try {
-            co_await run_impl(0, req, resp, go);
+            co_await process_one(0, req, resp, go);
         } catch (std::exception& e) {
             resp->result(http::status::internal_server_error);
-            resp->body() = e.what();
+            resp->body() = std::string(e.what()) + "\n";
+            resp->prepare_payload();
         }
     }
 
-private:
-    boost::asio::awaitable<void> run_impl(int idx, const request_type& req, response_type& resp,
-                                          const http_next_handle_t& go = nullptr) {
-        if (GSL_UNLIKELY(idx >= handlers_.size())) {
-            if (go) {
-                co_await go();
-            }
-            co_return;
-        }
-
-        const auto& fn = handlers_.at(idx);
-        auto next      = [&, this, idx]() -> boost::asio::awaitable<void> {
-            co_await run_impl(idx + 1, req, resp);
-        };
-        bool throw_exception = false;
-        try {
-            co_await fn(req, resp, next);
-        } catch (std::exception& e) {
-            throw_exception = true;
-            resp->result(http::status::internal_server_error);
-            resp->body() = e.what();
-        }
-
-        if (GSL_UNLIKELY(throw_exception)) {
-            co_await next();
-        }
-    }
-
-public:
     /// @brief parse path to a kv map according to rule_t
     ///        throw a exception if parse failed.
     /// @param target:
@@ -155,23 +134,23 @@ public:
 
             std::tuple<bool, kv_t> operator()(std::string_view raw) {
                 if (!re_) {
-                    return std::make_tuple(std::string_view(regex_str_) == raw, nullptr);
+                    return std::make_tuple(std::string_view(regex_str_) == raw, std::nullopt);
                 }
 
                 std::cmatch cm;
                 auto p = static_cast<const char*>(raw.data());
                 if (!std::regex_match(p, p + raw.size(), cm, *re_)) {
-                    return std::make_tuple(false, nullptr);
+                    return std::make_tuple(false, std::nullopt);
                 }
 
                 if (cm.size() - 1 != keys_.size()) {
-                    return std::make_tuple(false, nullptr);
+                    return std::make_tuple(false, std::nullopt);
                 }
 
-                auto params = std::make_shared<std::unordered_map<std::string, std::string>>();
-                int i       = 1;
+                typename kv_t::value_type params;
+                int i = 1;
                 for (auto key : keys_) {
-                    params->emplace(std::move(key), cm[i++].str());
+                    params.emplace(std::move(key), cm[i++].str());
                 }
                 return std::make_tuple(true, params);
             }
@@ -188,7 +167,24 @@ public:
     }
 
 private:
-    std::vector<http_handle_t> handlers_;
+    net::awaitable<void>  //
+    process_one(int index, const request_type& req, response_type& resp, const next_handler& go) {
+        if (GSL_UNLIKELY(index >= handlers_.size())) {
+            if (go) {
+                co_await go();
+            }
+            co_return;
+        }
+
+        const auto& fn = handlers_.at(index);
+        auto next      = [&, this, index]() -> net::awaitable<void> {
+            co_await process_one(index + 1, req, resp, nullptr);
+        };
+        co_await fn(req, resp, next);
+    }
+
+private:
+    std::vector<route_handler> handlers_;
 };
 
 }  // namespace lit

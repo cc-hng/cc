@@ -171,7 +171,7 @@ public:
 private:
     static inline void set_threadname(int index) {
         char buf[32] = {0};
-        snprintf(buf, 32, "asio#%d", index);
+        snprintf(buf, 32, "net#%d", index);
         cc::set_threadname((const char*)buf);
     }
 

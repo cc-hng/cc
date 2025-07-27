@@ -25,23 +25,23 @@ public:
     CondVar() { handles_.reserve(4); }
     ~CondVar() = default;
 
-    asio::task<void> wait() {
-        using time_point                          = asio::steady_timer::clock_type::time_point;
-        auto ctx                                  = co_await asio::this_coro::executor;
-        std::shared_ptr<asio::steady_timer> timer = std::make_shared<asio::steady_timer>(ctx);
+    net::task<void> wait() {
+        using time_point                         = net::steady_timer::clock_type::time_point;
+        auto ctx                                 = co_await net::this_coro::executor;
+        std::shared_ptr<net::steady_timer> timer = std::make_shared<net::steady_timer>(ctx);
         timer->expires_at(time_point::max());
-        std::weak_ptr<asio::steady_timer> weak_timer(timer);
+        std::weak_ptr<net::steady_timer> weak_timer(timer);
         wait_impl([weak_timer] {
             if (auto timer = weak_timer.lock()) {
                 timer->cancel();
             }
         });
-        co_await timer->async_wait(asio::as_tuple(asio::use_awaitable));
+        co_await timer->async_wait(net::as_tuple(net::use_awaitable));
     }
 
-    asio::task<bool> wait_until(int timeout) {
-        using namespace asio::experimental::awaitable_operators;
-        auto ctx = co_await asio::this_coro::executor;
+    net::task<bool> wait_until(int timeout) {
+        using namespace net::experimental::awaitable_operators;
+        auto ctx = co_await net::this_coro::executor;
         auto v   = co_await (cc::async_sleep(timeout) || wait());
         co_return v.index() == 0;
     }

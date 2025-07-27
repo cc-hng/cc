@@ -8,7 +8,7 @@ int add(int a, int b) {
     return a + b;
 }
 
-asio::task<void> task1() {
+net::task<void> task1() {
     for (int i = 0;; i++) {
         LOGI("task1: {}", i + 1);
         co_await cc::async_sleep(1000);
@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
     auto sum = g_svc.call<int, int, int>("/add", 1, 2);
     LOGI("sum = {}", sum);
 
-    g_asp.co_spawn([]() -> asio::task<void> {
+    g_asp.co_spawn([]() -> net::task<void> {
         auto& g_svc = cc::ConcurrentService::instance();
         for (;;) {
             auto sum = co_await g_svc.co_call<int>("/add", 1, 2);

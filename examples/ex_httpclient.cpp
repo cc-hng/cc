@@ -1,13 +1,14 @@
 #include <iostream>
 #include <cc/asio.hpp>
 #include <cc/lit.hpp>
+#include <cc/lit/client.h>
 #include <gsl/gsl>
 
 int main() {
     auto defer = gsl::finally([] { cc::lit::fetch_pool_cleanup(); });
     auto& ap   = cc::AsioPool::instance();
 
-    ap.co_spawn([]() -> asio::task<void> {
+    ap.co_spawn([]() -> net::task<void> {
         auto resp = co_await cc::lit::http_get("http://127.0.0.1:8088");
         std::cout << resp.body() << std::endl;
 

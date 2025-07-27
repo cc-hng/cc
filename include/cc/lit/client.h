@@ -19,14 +19,14 @@ namespace lit {
 
 namespace beast = boost::beast;
 namespace http  = beast::http;
-namespace asio  = boost::asio;
+namespace net   = boost::asio;
 using tcp       = boost::asio::ip::tcp;
 using namespace std::chrono_literals;
 
 namespace detail {
 
 using tcp_stream = typename beast::tcp_stream::rebind_executor<
-    asio::use_awaitable_t<>::executor_with_default<asio::any_io_executor>>::other;
+    net::use_awaitable_t<>::executor_with_default<net::any_io_executor>>::other;
 
 struct Connection {
     tcp_stream stream;
@@ -34,7 +34,6 @@ struct Connection {
     std::string port;
     bool tls;
     bool first;
-    beast::flat_buffer buffer;
 
     Connection(tcp_stream&& s, std::string h, std::string p, bool t, bool f = true)
       : stream(std::move(s))
@@ -45,8 +44,10 @@ struct Connection {
 
     ~Connection() {
         // Gracefully close the socket
-        beast::error_code ec;
-        std::ignore = stream.socket().shutdown(tcp::socket::shutdown_both, ec);
+        if (stream.socket().is_open()) {
+            beast::error_code ec;
+            std::ignore = stream.socket().shutdown(tcp::socket::shutdown_both, ec);
+        }
     }
 };
 
@@ -64,7 +65,7 @@ public:
         connections_ = {};
     }
 
-    asio::awaitable<std::shared_ptr<Connection>>
+    net::awaitable<std::shared_ptr<Connection>>
     get_connection(const std::string& host, const std::string& port, bool tls) {
         std::unique_lock<std::mutex> lock(mtx_);
         std::string key = host + ":" + port;
@@ -78,9 +79,9 @@ public:
 
         lock.unlock();
         auto resolver =
-            asio::use_awaitable.as_default_on(tcp::resolver(co_await asio::this_coro::executor));
-        tcp_stream stream = asio::use_awaitable.as_default_on(
-            beast::tcp_stream(co_await asio::this_coro::executor));
+            net::use_awaitable.as_default_on(tcp::resolver(co_await net::this_coro::executor));
+        tcp_stream stream =
+            net::use_awaitable.as_default_on(beast::tcp_stream(co_await net::this_coro::executor));
 
         auto const results = co_await resolver.async_resolve(host, port);
         co_await stream.async_connect(results);
@@ -94,13 +95,16 @@ public:
 
     void save_connection(std::shared_ptr<Connection> conn) {
         std::unique_lock<std::mutex> lock(mtx_);
-        conn->first     = false;
         std::string key = conn->host + ":" + conn->port;
         auto& queue     = connections_[key];
-        queue.push_back(conn);
+        if (queue.size() < max_per_host_) {
+            conn->first = false;
+            queue.push_back(conn);
+        }
     }
 
 private:
+    const int max_per_host_ = 128;
     std::mutex mtx_;
     std::unordered_map<std::string, std::deque<std::shared_ptr<Connection>>> connections_;
 };
@@ -108,17 +112,18 @@ private:
 
 struct fetch_option_t {
     using method_type  = boost::beast::http::verb;
-    using headers_type = std::unordered_map<std::string, std::string>;
+    using headers_type = boost::beast::http::fields;
 
     method_type method   = method_type::get;
     headers_type headers = {};
     std::string body     = "";
     int timeout          = 30;  // seconds
     bool keepalive       = false;
+    int max_retry        = 5;
 };
 
 template <typename Body = beast::http::string_body>
-asio::awaitable<beast::http::response<Body>>
+net::awaitable<beast::http::response<Body>>
 fetch(std::string_view url, const fetch_option_t options = {}) {
     detail::ConnectionPool& pool = detail::ConnectionPool::instance();
     boost::urls::url_view u(url);
@@ -146,7 +151,7 @@ fetch(std::string_view url, const fetch_option_t options = {}) {
         requri += u.query();
     }
 
-    for (;;) {
+    for (int retry = options.max_retry; retry > 0; retry--) {
         std::shared_ptr<detail::Connection> conn;
         try {
             conn = co_await pool.get_connection(host, port, scheme == "https" ? true : false);
@@ -158,7 +163,7 @@ fetch(std::string_view url, const fetch_option_t options = {}) {
             req.keep_alive(options.keepalive);
             req.body() = std::move(options.body);
             for (const auto& kv : options.headers) {
-                req.set(kv.first, kv.second);
+                req.set(kv.name_string(), kv.value());
             }
             req.prepare_payload();
 
@@ -166,8 +171,8 @@ fetch(std::string_view url, const fetch_option_t options = {}) {
             std::ignore = co_await http::async_write(conn->stream, req);
 
             http::response<Body> res;
-            conn->buffer.clear();
-            std::ignore = co_await http::async_read(conn->stream, conn->buffer, res);
+            beast::flat_buffer buffer;
+            std::ignore = co_await http::async_read(conn->stream, buffer, res);
 
             if (options.keepalive) {
                 pool.save_connection(conn);
@@ -176,7 +181,7 @@ fetch(std::string_view url, const fetch_option_t options = {}) {
         } catch (...) {
             // 如果连接是keepalive的且抛异常(区分异常)
             // 则尝试新建连接或者从pool取新的连接，重新尝试
-            if (conn && !conn->first && options.keepalive) {
+            if (conn && !conn->first && options.keepalive && retry > 0) {
                 continue;
             } else {
                 throw;
@@ -186,7 +191,7 @@ fetch(std::string_view url, const fetch_option_t options = {}) {
 }
 
 template <typename Body = beast::http::string_body>
-asio::awaitable<beast::http::response<Body>>
+net::awaitable<beast::http::response<Body>>
 http_get(std::string_view url, const fetch_option_t::headers_type& headers, bool keepalive = false) {
     fetch_option_t opt = {
         .headers   = headers,
@@ -196,12 +201,12 @@ http_get(std::string_view url, const fetch_option_t::headers_type& headers, bool
 }
 
 template <typename Body = beast::http::string_body>
-asio::awaitable<beast::http::response<Body>> http_get(std::string_view url, bool keepalive = false) {
+net::awaitable<beast::http::response<Body>> http_get(std::string_view url, bool keepalive = false) {
     co_return co_await http_get(url, {}, keepalive);
 }
 
 template <typename Body = beast::http::string_body>
-asio::awaitable<beast::http::response<Body>>
+net::awaitable<beast::http::response<Body>>
 http_post(std::string_view url, std::string body, const fetch_option_t::headers_type& headers,
           bool keepalive = false) {
     fetch_option_t opt = {
@@ -214,19 +219,19 @@ http_post(std::string_view url, std::string body, const fetch_option_t::headers_
 }
 
 template <typename Body = beast::http::string_body>
-asio::awaitable<beast::http::response<Body>>
+net::awaitable<beast::http::response<Body>>
 http_post(std::string_view url, std::string body, bool keepalive = false) {
     co_return co_await http_post(url, std::move(body), {}, keepalive);
 }
 
 template <typename Body = http::string_body>
-asio::awaitable<beast::http::response<Body>>
+net::awaitable<beast::http::response<Body>>
 http_upload(std::string_view url, const std::vector<multipart_formdata_t>& formdata,
             const fetch_option_t::headers_type& headers, bool keepalive = false) {
-    static auto generate_boundary = []() {
-        const std::string chars = "0123456789"
-                                  "abcdefghijklmnopqrstuvwxyz"
-                                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    static constexpr auto generate_boundary = []() {
+        static const std::string chars = "0123456789"
+                                         "abcdefghijklmnopqrstuvwxyz"
+                                         "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         std::random_device rd;
         std::mt19937 generator(rd());
         std::uniform_int_distribution<> dist(0, chars.size() - 1);
@@ -241,12 +246,12 @@ http_upload(std::string_view url, const std::vector<multipart_formdata_t>& formd
     auto boundary = generate_boundary();
     auto body     = multipart_formdata_t::encode(formdata, boundary);
     auto headers0 = headers;
-    headers0.emplace("Content-Type", "multipart/form-data; boundary=" + boundary);
+    headers0.set(http::field::content_type, "multipart/form-data; boundary=" + boundary);
     co_return co_await http_post(url, std::move(body), headers0, keepalive);
 }
 
 template <typename Body = http::string_body>
-asio::awaitable<beast::http::response<Body>>
+net::awaitable<beast::http::response<Body>>
 http_upload(std::string_view url, const std::vector<multipart_formdata_t>& formdata,
             bool keepalive = false) {
     co_return co_await http_upload(url, formdata, {}, keepalive);

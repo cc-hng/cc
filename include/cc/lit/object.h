@@ -2,7 +2,7 @@
 
 #include <functional>
 #include <iomanip>
-#include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -12,6 +12,14 @@
 
 namespace cc {
 namespace lit {
+
+namespace net    = boost::asio;
+namespace beast  = boost::beast;
+namespace http   = beast::http;
+using tcp        = net::ip::tcp;
+using tcp_stream = typename beast::tcp_stream::rebind_executor<
+    net::use_awaitable_t<>::executor_with_default<net::any_io_executor>>::other;
+using ws_stream = beast::websocket::stream<tcp_stream>;
 
 namespace detail {
 //
@@ -54,31 +62,24 @@ namespace detail {
 
 }  // namespace detail
 
-namespace asio   = boost::asio;
-namespace beast  = boost::beast;
-namespace http   = beast::http;
-using tcp        = boost::asio::ip::tcp;
-using tcp_stream = typename beast::tcp_stream::rebind_executor<
-    asio::use_awaitable_t<>::executor_with_default<asio::any_io_executor>>::other;
-using ws_stream = beast::websocket::stream<tcp_stream>;
-
+template <typename Body>
 struct http_request_t {
-    using kv_t     = std::shared_ptr<std::unordered_map<std::string, std::string>>;
-    using raw_type = http::request<http::string_body>;
+    using kv_t     = std::unordered_map<std::string, std::string>;
+    using raw_type = http::request<Body>;
 
-    raw_type request;
+    raw_type raw;
     std::string_view path;
-    mutable kv_t queries;
-    mutable kv_t params;
+    std::optional<kv_t> queries;         // ?a=b&c=d
+    mutable std::optional<kv_t> params;  // compile route path(/:user/:name)
 
-    inline raw_type* operator->() { return &request; }
-    inline const raw_type* operator->() const { return &request; }
+    inline raw_type* operator->() { return &raw; }
+    inline const raw_type* operator->() const { return &raw; }
 
-    bool handle() {
-        auto [path, query] = split_target(request.target());
+    bool compile_target() {
+        auto [path, query] = split_target(raw.target());
         this->path         = path;
         if (!query.empty()) {
-            typename kv_t::element_type out;
+            kv_t out;
             auto query0   = detail::urldecode(query);
             const char* s = query0.data();
             int left      = query0.size();
@@ -109,12 +110,13 @@ struct http_request_t {
                 left -= len + 1;
             }
 
-            queries = std::make_shared<typename kv_t::element_type>(std::move(out));
+            queries = out;
         }
         return true;
     }
 
-    static std::tuple<std::string_view, std::string_view> split_target(std::string_view target) {
+    static std::tuple<std::string_view, std::string_view>  //
+    split_target(std::string_view target) {
         static std::string nullstr = "";
         auto offset                = target.find_first_of('?');
         std::string_view path, query;
@@ -129,32 +131,32 @@ struct http_request_t {
     }
 };
 
+template <typename Body>
 struct http_response_t {
-    using raw_type = http::response<http::string_body>;
-    raw_type response;
+    using raw_type = http::response<Body>;
+    raw_type raw;
 
-    http_response_t() {
-        response.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-        response.result(http::status::not_found);
-        response.body() = "Not Found";
-    }
+    inline raw_type* operator->() noexcept { return &raw; }
+    inline const raw_type* operator->() const noexcept { return &raw; }
 
-    inline raw_type* operator->() { return &response; }
-    inline const raw_type* operator->() const { return &response; }
-
-    inline void
+    std::enable_if_t<std::is_same_v<Body, http::string_body>, void>
     set_content(std::string_view body, std::string_view content_type = "application/json") {
-        response.result(http::status::ok);
-        response.body() = body;
-        response.set(http::field::content_type, content_type);
+        raw.result(http::status::ok);
+        raw.body() = body;
+        raw.set(http::field::content_type, content_type);
     }
 };
 
-using http_next_handle_t = std::function<boost::asio::awaitable<void>()>;
-using http_handle_t =
-    std::function<boost::asio::awaitable<void>(const http_request_t&, http_response_t&,
-                                               const http_next_handle_t&)>;
-using ws_handle_t = std::function<asio::awaitable<void>(const http_request_t&, ws_stream)>;
+using http_request_body_t  = http::string_body;
+using http_response_body_t = http::string_body;
+
+using http_next_handler = std::function<net::awaitable<void>()>;
+template <typename ReqBody, typename RespBody>
+using http_route_handler =
+    std::function<net::awaitable<void>(const http_request_t<ReqBody>&, http_response_t<RespBody>&,
+                                       const http_next_handler&)>;
+template <typename ReqBody>
+using ws_handler = std::function<net::awaitable<void>(const http_request_t<ReqBody>&, ws_stream)>;
 
 }  // namespace lit
 }  // namespace cc

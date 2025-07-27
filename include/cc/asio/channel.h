@@ -6,6 +6,7 @@
 #include <mutex>
 #include <tuple>
 #include <cc/asio/condvar.h>
+#include <cc/asio/helper.h>
 #include <gsl/gsl>
 
 namespace cc {
@@ -13,12 +14,9 @@ namespace chan {
 
 namespace detail {
 
-// clang-format off
-template <
-    typename T,
-    typename MutexPolicy = NonMutex,
-    template <class> class Lock = LockGuard
->  // clang-format on
+template <typename T,                               //
+          typename MutexPolicy        = NonMutex,   //
+          template <class> class Lock = LockGuard>  //
 struct mpsc_context_t {
     MutexPolicy mtx_;
     CondVar<MutexPolicy> cv_;
@@ -40,7 +38,7 @@ struct mpsc_context_t {
         cv_.notify_all();
     }
 
-    asio::awaitable<std::deque<T>> recv() {
+    net::awaitable<std::deque<T>> recv() {
         std::deque<T> ret;
         do {
             Lock<MutexPolicy> _lck{mtx_};
@@ -85,7 +83,7 @@ public:
         cv_.notify_all();
     }
 
-    asio::task<T> recv() {
+    net::task<T> recv() {
         do {
             Lock<MutexPolicy> _lck{mtx_};
             if (received_) {
@@ -112,7 +110,7 @@ template <typename T>
 using Sender = std::shared_ptr<std::function<void(const T&)>>;
 
 template <typename T>
-using Receiver = std::unique_ptr<std::function<asio::awaitable<std::deque<T>>()>>;
+using Receiver = std::unique_ptr<std::function<net::awaitable<std::deque<T>>()>>;
 
 template <typename T, bool threadsafe = true>
 auto make() -> std::tuple<Sender<T>, Receiver<T>> {
@@ -125,7 +123,7 @@ auto make() -> std::tuple<Sender<T>, Receiver<T>> {
         Sender sender0 = std::make_shared<typename Sender::element_type>(                        \
             [ctx, defer](auto&& a) { ctx->send(std::forward<decltype(a)>(a)); });                \
         Receiver receiver0 = std::make_unique<typename Receiver::element_type>(                  \
-            [ctx]() -> asio::task<std::deque<T>> { co_return co_await ctx->recv(); });           \
+            [ctx]() -> net::task<std::deque<T>> { co_return co_await ctx->recv(); });            \
         return std::make_tuple(sender0, std::move(receiver0));                                   \
     } while (0)
 

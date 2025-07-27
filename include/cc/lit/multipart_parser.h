@@ -311,7 +311,9 @@ struct multipart_formdata_t {
     std::string content_type;
     std::string content;
 
-    static std::vector<multipart_formdata_t> decode(const http_request_t& req) {
+    template <typename Body>
+    static std::enable_if_t<std::is_same_v<Body, http_request_body_t>, std::vector<multipart_formdata_t>>
+    decode(const http_request_t<Body>& req) {
         auto content_type = req->at(http::field::content_type);
         auto boundary     = detail::multipart_parse_content_type(content_type);
         if (boundary.empty()) {
@@ -354,8 +356,10 @@ struct multipart_formdata_t {
         return mfdp(boundary, req->body());
     }
 
-    static void encode(http_request_t& req, const std::vector<multipart_formdata_t>& formdata,
-                       const std::string& boundary) {
+    template <typename Body>
+    static std::enable_if_t<std::is_same_v<Body, http_request_body_t>, void>
+    encode(http_request_t<Body>& req, const std::vector<multipart_formdata_t>& formdata,
+           const std::string& boundary) {
         std::ostringstream oss;
         for (const auto& part : formdata) {
             // Boundary

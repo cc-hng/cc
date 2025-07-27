@@ -11,12 +11,12 @@ static int random(int m) {
     return dist(gen);
 }
 
-static asio::awaitable<void> fake_task() {
+static net::awaitable<void> fake_task() {
     int ms = random(3000) + 1000;
     co_return co_await cc::async_sleep(ms);
 }
 
-static asio::awaitable<void> fake_thread(int idx, cc::Semaphore<std::mutex>& sem) {
+static net::awaitable<void> fake_thread(int idx, cc::Semaphore<std::mutex>& sem) {
     for (;;) {
         fmt::print(stderr, "[thread#{:02d}] wait...\n", idx);
         co_await sem.acquire();
@@ -33,7 +33,7 @@ int main() {
 
     auto& ctx = ap.get_io_context();
     for (int i = 0; i < 4; i++) {
-        asio::co_spawn(ctx, fake_thread(i + 1, sem), asio::detached);
+        net::co_spawn(ctx, fake_thread(i + 1, sem), net::detached);
     }
 
     ap.run();

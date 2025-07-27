@@ -21,13 +21,13 @@ int main(int argc, char* argv[]) {
         socket.open(udp::v4());
 
         boost::array<char, 1> send_buf = {{0}};
-        socket.send_to(boost::asio::buffer(send_buf), receiver_endpoint);
-        // socket.send(boost::asio::buffer(send_buf));
+        socket.send_to(net::buffer(send_buf), receiver_endpoint);
+        // socket.send(net::buffer(send_buf));
 
         boost::array<char, 128> recv_buf;
         udp::endpoint sender_endpoint;
-        size_t len = socket.receive_from(boost::asio::buffer(recv_buf), sender_endpoint);
-        // auto len = socket.receive(boost::asio::buffer(recv_buf));
+        size_t len = socket.receive_from(net::buffer(recv_buf), sender_endpoint);
+        // auto len = socket.receive(net::buffer(recv_buf));
 
         std::cout.write(recv_buf.data(), len);
     } catch (std::exception& e) {

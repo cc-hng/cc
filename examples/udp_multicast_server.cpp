@@ -30,27 +30,27 @@ public:
         }
     }
 
-    asio::task<void> operator()() {
+    net::task<void> operator()() {
         std::array<char, 64> data;
-        udp::endpoint listen_endpoint(asio::ip::make_address("0.0.0.0"), port_);
-        udp::socket socket(co_await asio::this_coro::executor);
+        udp::endpoint listen_endpoint(net::ip::make_address("0.0.0.0"), port_);
+        udp::socket socket(co_await net::this_coro::executor);
 
         socket.open(listen_endpoint.protocol());
         socket.set_option(udp::socket::reuse_address(true));
         socket.bind(listen_endpoint);
-        socket.set_option(asio::ip::multicast::join_group(asio::ip::make_address(ip_)));
+        socket.set_option(net::ip::multicast::join_group(net::ip::make_address(ip_)));
         sock_ = &socket;
 
         udp::endpoint sender_endpoint;
         for (;;) {
             try {
-                auto nbytes = co_await socket.async_receive_from(asio::buffer(data), sender_endpoint,
-                                                                 asio::use_awaitable);
+                auto nbytes = co_await socket.async_receive_from(net::buffer(data), sender_endpoint,
+                                                                 net::use_awaitable);
                 LOGI("recv: {}", std::string_view((const char*)(&*data.begin()), nbytes));
             } catch (const boost::system::system_error& e) {
                 auto ec = e.code();
-                if (GSL_LIKELY(ec == asio::error::operation_aborted
-                               || ec == asio::error::bad_descriptor)) {
+                if (GSL_LIKELY(ec == net::error::operation_aborted
+                               || ec == net::error::bad_descriptor)) {
                     throw;
                 }
             }

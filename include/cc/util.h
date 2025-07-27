@@ -1,8 +1,10 @@
 #pragma once
 
+#include <sstream>
 #include <stdexcept>
 #include <boost/core/demangle.hpp>
 #include <boost/core/noncopyable.hpp>
+#include <boost/stacktrace.hpp>
 #include <gsl/gsl>
 
 #ifdef __linux__
@@ -14,11 +16,13 @@
 #define CC_CALL_OUTSIDE(fn) \
     [[maybe_unused]] static const bool CC_CONCAT(__b_, __LINE__) = ((fn), true)
 
-#define ASSERT(cond, msg)                  \
-    do {                                   \
-        if (GSL_UNLIKELY(!(cond))) {       \
-            throw std::runtime_error(msg); \
-        }                                  \
+#define CASSERT(cond)                                       \
+    do {                                                    \
+        if (GSL_UNLIKELY(!(cond))) {                        \
+            std::ostringstream oss;                         \
+            oss << "\n" << boost::stacktrace::stacktrace(); \
+            throw std::runtime_error(oss.str());            \
+        }                                                   \
     } while (0)
 
 namespace cc {

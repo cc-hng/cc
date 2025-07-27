@@ -6,6 +6,7 @@
 #include <boost/callable_traits.hpp>
 #include <cc/json.h>
 #include <cc/lit/object.h>
+#include <cc/lit/server.h>
 #include <cc/type_traits.h>
 
 namespace cc {
@@ -24,8 +25,8 @@ public:
         using Args    = ct::args_t<Fn, std::tuple>;
         using Request = std::decay_t<std::tuple_element_t<0, Args>>;
 
-        return std::function([fn](const http_request_t& request, http_response_t& resp,
-                                  const http_next_handle_t& go) -> boost::asio::awaitable<void> {
+        return std::function([fn](const App::request_type& request, App::response_type& resp,
+                                  const http_next_handler& go) -> boost::asio::awaitable<void> {
             auto body    = request->body();
             auto req_msg = cc::json::parse<Request>(body);
             std::string rep_json;

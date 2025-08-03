@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
 
 project(deps LANGUAGES CXX C)
 
-include(../common.cmake)
 include(ExternalProject)
 
 if(CMAKE_SYSROOT)

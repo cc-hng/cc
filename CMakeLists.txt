@@ -1,10 +1,13 @@
-include(cmake/ProjectGuard.cmake)
 cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
 
 project(
   cc
   VERSION "0.1.0"
   LANGUAGES CXX C)
+
+include(cmake/cpm.cmake)
+CPMAddPackage("gh:cc-hng/cmake-scripts#v0.1.0")
+include(${cmake-scripts_SOURCE_DIR}/ProjectGuard.cmake)
 
 # https://cmake.org/cmake/help/latest/variable/PROJECT_IS_TOP_LEVEL.html
 string(COMPARE EQUAL ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR} PROJECT_IS_TOP_LEVEL)
@@ -22,7 +25,7 @@ option(CC_BUILD_EXAMPLES "Build examples" ${PROJECT_IS_TOP_LEVEL})
 #####################################
 # compile & link options
 #####################################
-include(cmake/common.cmake)
+include(${cmake-scripts_SOURCE_DIR}/core.cmake)
 
 # address|thread san
 if(CC_ENABLE_ASAN AND CC_ENABLE_TSAN)
@@ -75,11 +78,7 @@ CHECK_INCLUDE_FILE("backtrace.h" CC_HAVE_BACKTRACE_H)
 #####################################
 # third-party packages
 #####################################
-_clear_variable(DESTINATION CMAKE_CXX_FLAGS_DEBUG BACKUP CMAKE_CXX_FLAGS_DEBUG_BAK)
-_clear_variable(DESTINATION CMAKE_EXE_LINKER_FLAGS_DEBUG BACKUP CMAKE_EXE_LINKER_FLAGS_DEBUG_BAK)
-
 include(cmake/external.cmake)
-include(cmake/cpm.cmake)
 
 if(CC_ENABLE_IO_URING)
   find_package(PkgConfig REQUIRED)
@@ -157,10 +156,6 @@ CPMAddPackage("gh:TheLartians/Format.cmake@1.8.3")
 CPMAddPackage("gh:TheLartians/PackageProject.cmake@1.13.0")
 # CPMAddPackage("gh:aminya/project_options@0.36.2")
 
-
-_restore_variable(DESTINATION CMAKE_CXX_FLAGS_DEBUG BACKUP CMAKE_CXX_FLAGS_DEBUG_BAK)
-_restore_variable(DESTINATION CMAKE_EXE_LINKER_FLAGS_DEBUG BACKUP CMAKE_EXE_LINKER_FLAGS_DEBUG_BAK)
-
 #####################################
 # target
 #####################################
@@ -209,6 +204,7 @@ target_include_directories(
   ${PROJECT_NAME} INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>)
+target_link_time_optimization(${PROJECT_NAME} REQUIRED)
 
 #####################################
 # test

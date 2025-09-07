@@ -14,4 +14,4 @@ fi
 rm -rf ${SRC_ROOT}/build/_build
 rm -rf ${SRC_ROOT}/build/_install
 rm -rf ${SRC_ROOT}/build/CMakeCache.txt ${SRC_ROOT}/build/CMakeFiles
-cmake -Bbuild --preset $1 -DFETCHCONTENT_BASE_DIR=/opt/my/cmake/downloads
+cmake -Bbuild --preset $1

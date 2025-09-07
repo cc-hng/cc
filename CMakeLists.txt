@@ -6,7 +6,7 @@ project(
   LANGUAGES CXX C)
 
 include(cmake/cpm.cmake)
-CPMAddPackage("gh:cc-hng/cmake-scripts#v0.1.0")
+CPMAddPackage("gh:cc-hng/cmake-scripts#v0.1.1")
 include(${cmake-scripts_SOURCE_DIR}/ProjectGuard.cmake)
 
 # https://cmake.org/cmake/help/latest/variable/PROJECT_IS_TOP_LEVEL.html
@@ -105,7 +105,7 @@ CPMAddPackage(
   OPTIONS "BOOST_ENABLE_CMAKE ON" "BOOST_SKIP_INSTALL_RULES ON" # Set `OFF` for installation
           "BUILD_SHARED_LIBS OFF" "BUILD_TESTING OFF" "BUILD_GMOCK OFF"
 )
-CPMAddPackage("gh:fmtlib/fmt#11.0.2")
+CPMAddPackage("gh:fmtlib/fmt#11.2.0")
 CPMAddPackage("gh:microsoft/GSL#v4.1.0")
 
 # yyjson

@@ -3,9 +3,13 @@
 #include <string_view>
 #include <tuple>
 #include <vector>
-#include <cc/sqlite3.h>
+#include <cc/singleton_provider.h>
+#include <cc/sqlite3pp.h>
+#include <cc/util.h>
 #include <fmt/core.h>
 #include <fmt/ranges.h>
+
+using Sqlite3Provider = cc::SingletonProvider<cc::Sqlite3pp>;
 
 struct user_t {
     std::optional<int> id;
@@ -24,9 +28,8 @@ struct user_query_option_t {
 int main() {
     fmt::print("version: {}\n", sqlite3_version);
 
-    cc::Sqlite3pp<std::mutex> sqlconn;
-
-    sqlconn.open(":memory:");
+    Sqlite3Provider::init(":memory:");
+    auto& sqlconn = Sqlite3Provider::instance();
 
     sqlconn.execute(R"(
         CREATE TABLE IF NOT EXISTS user (

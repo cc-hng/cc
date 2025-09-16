@@ -188,6 +188,10 @@ fetch(std::string_view url, const fetch_option_t options = {}) {
             }
         }
     }
+
+    CASSERT(0);
+    http::response<Body> res;
+    co_return res;
 }
 
 template <typename Body = beast::http::string_body>

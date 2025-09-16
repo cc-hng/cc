@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
 
 project(
   cc
-  VERSION "0.1.0"
+  VERSION "0.2.0"
   LANGUAGES CXX C)
 
 include(cmake/cpm.cmake)
@@ -99,19 +99,19 @@ endif()
 list(APPEND BOOST_INCLUDE_LIBRARIES "core;asio;beast;url;callable_traits;stacktrace")
 CPMAddPackage(
   NAME Boost
-  VERSION 1.86.0 # Versions less than 1.85.0 may need patches for installation targets.
+  VERSION 1.89.0 # Versions less than 1.85.0 may need patches for installation targets.
   URL https://github.com/boostorg/boost/releases/download/boost-1.86.0/boost-1.86.0-cmake.tar.xz
   URL_HASH SHA256=2c5ec5edcdff47ff55e27ed9560b0a0b94b07bd07ed9928b476150e16b0efc57
   OPTIONS "BOOST_ENABLE_CMAKE ON" "BOOST_SKIP_INSTALL_RULES ON" # Set `OFF` for installation
           "BUILD_SHARED_LIBS OFF" "BUILD_TESTING OFF" "BUILD_GMOCK OFF"
 )
 CPMAddPackage("gh:fmtlib/fmt#11.2.0")
-CPMAddPackage("gh:microsoft/GSL#v4.1.0")
+CPMAddPackage("gh:microsoft/GSL#v4.2.0")
 
 # yyjson
 CPMAddPackage(
   NAME yyjson
-  GIT_TAG 0.10.0
+  GIT_TAG 0.12.0
   GITHUB_REPOSITORY ibireme/yyjson
   OPTIONS "YYJSON_ENABLE_FASTMATH ON"
 )
@@ -133,13 +133,13 @@ if(CC_BUILD_BENCHES)
 endif()
 
 if(CC_WITH_SQLITE3)
-  CPMAddPackage("gh:cc-hng/sqlite3#v3.40.0")
+  CPMAddPackage("gh:cc-hng/sqlite3#v3.50.3")
 endif()
 
 if(CC_BUILD_EXAMPLES)
   CPMAddPackage(
     NAME spdlog
-    GIT_TAG v1.15.0
+    GIT_TAG v1.15.3
     GITHUB_REPOSITORY gabime/spdlog
     OPTIONS
       "SPDLOG_INSTALL ON"

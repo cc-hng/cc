@@ -97,7 +97,7 @@ public:
 
             if (parse_range(req.raw[http::field::range], size, start, end)) {
                 char buf[64] = {0};
-                snprintf(buf, 64, "bytes %d-%d/%d", start, end, size);
+                snprintf(buf, 64, "bytes %lu-%lu/%zu", start, end, size);
                 resp->result(http::status::partial_content);
                 resp->set(http::field::content_range, std::string(buf));
                 resp->body() = read_range(t, start, end);

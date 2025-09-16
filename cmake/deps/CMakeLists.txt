@@ -22,7 +22,7 @@ if(CC_ENABLE_IO_URING)
 
   ExternalProject_Add(
     liburing
-    URL https://github.com/axboe/liburing/archive/refs/tags/liburing-2.6.tar.gz
+    URL https://github.com/axboe/liburing/archive/refs/tags/liburing-2.12.tar.gz
     CONFIGURE_COMMAND
       sed -i "s/^\\(CFLAGS=\"[^\"]*\\)/\\1 ${CFLAGS_MODIFIED}/" configure && ./configure
       --prefix=${CMAKE_INSTALL_PREFIX} --cc=${CMAKE_C_COMPILER} --cxx=${CMAKE_CXX_COMPILER} --use-libc && sed -i

@@ -1,7 +1,8 @@
 #ifdef CC_WITH_SQLITE3
 
 #    include "common.h"
-#    include <cc/sqlite3.h>
+#    include <cc/singleton_provider.h>
+#    include <cc/sqlite3pp.h>
 #    include <fmt/core.h>
 
 struct user_t {
@@ -9,10 +10,11 @@ struct user_t {
     int age;
 };
 
-static cc::Sqlite3pp<> kSqlConn;
+using Sqlite3Provider = cc::SingletonProvider<cc::Sqlite3pp>;
 
 static void init_sqlite3() {
-    kSqlConn.open(":memory:");
+    Sqlite3Provider::init(":memory:");
+    auto& kSqlConn = Sqlite3Provider::instance();
 
     kSqlConn.execute(R"(
         CREATE TABLE user (
@@ -35,6 +37,7 @@ static void init_sqlite3() {
 CC_CALL_OUTSIDE(init_sqlite3());
 
 static void bench_sqlite3(bench::Bench& b) {
+    auto& kSqlConn = Sqlite3Provider::instance();
     b.title("sqlite3");
     b.run("query", [&] {
         auto r = kSqlConn.execute<user_t>("select * from user where name=?", "A333");

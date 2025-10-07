@@ -133,7 +133,7 @@ if(CC_BUILD_BENCHES)
 endif()
 
 if(CC_WITH_SQLITE3)
-  CPMAddPackage("gh:cc-hng/sqlite3#v3.50.3")
+  CPMAddPackage("gh:cc-hng/sqlite3#v3.40.0")
 endif()
 
 if(CC_BUILD_EXAMPLES)

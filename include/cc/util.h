@@ -1,10 +1,16 @@
 #pragma once
 
+#include <list>
+#include <map>
 #include <sstream>
 #include <stdexcept>
+#include <string>
+#include <unordered_map>
+#include <vector>
 #include <boost/core/demangle.hpp>
 #include <boost/core/noncopyable.hpp>
 #include <boost/stacktrace.hpp>
+#include <fmt/format.h>
 #include <gsl/gsl>
 
 #ifdef __linux__
@@ -26,6 +32,57 @@
     } while (0)
 
 namespace cc {
+
+namespace detail {
+
+template <typename T>
+struct typeone {
+    static std::string name() {
+        static constexpr auto str_remove = [](std::string s, std::string toremove) -> std::string {
+            for (;;) {
+                auto pos = s.find(toremove);
+                if (pos == std::string::npos) {
+                    break;
+                }
+                s.erase(pos, toremove.size());
+            }
+            return s;
+        };
+
+        if constexpr (std::is_same_v<T, std::string>) {
+            return "string";
+        } else if constexpr (std::is_same_v<T, std::string_view>) {
+            return "string_view";
+        } else if constexpr (std::is_same_v<T, const char*>) {
+            return "cstr";
+        } else {
+            auto r = boost::core::demangle(typeid(T).name());
+            return str_remove(r, "__cdecl");
+        }
+    }
+};
+
+template <typename T, typename A>
+struct typeone<std::vector<T, A>> {
+    static std::string name() { return fmt::format("vector<{}>", typeone<T>::name()); }
+};
+
+template <typename T, typename A>
+struct typeone<std::list<T, A>> {
+    static std::string name() { return fmt::format("list<{}>", typeone<T>::name()); }
+};
+
+template <typename V, typename C, typename A>
+struct typeone<std::map<V, C, A>> {
+    static std::string name() { return fmt::format("map<string, {}>", typeone<C>::name()); }
+};
+
+template <typename V, typename C, typename A>
+struct typeone<std::unordered_map<V, C, A>> {
+    static std::string name() { return fmt::format("hashmap<string, {}>", typeone<C>::name()); }
+};
+
+}  // namespace detail
 
 class NonMutex {
 public:
@@ -50,15 +107,18 @@ inline void set_threadname(const char* name) {
 #endif
 }
 
+/// --- typename
 template <typename... Args>
 std::string type_name() {
-    using Signature = void(Args...);
-    auto s          = boost::core::demangle(typeid(Signature).name());
-    if constexpr (sizeof...(Args) == 1) {
-        int len = s.size();
-        return s.substr(6, len - 7);
+    if constexpr (sizeof...(Args) == 0) {
+        return "()";
+    } else if constexpr (sizeof...(Args) == 1) {
+        return detail::typeone<Args...>::name();
     } else {
-        return s.substr(5);
+        std::string r = "(";
+        ((r += detail::typeone<Args>::name() + ","), ...);
+        r.back() = ')';
+        return r;
     }
 }
 

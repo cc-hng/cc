@@ -28,12 +28,14 @@
     template <typename F, typename... Args>                                                   \
     constexpr bool has_member_##member##_v = has_member_##member<F, Args...>::value;
 
+#ifdef CC_ENABLE_COROUTINE
 namespace boost {
 namespace asio {
 template <typename T, typename Executor>
 class awaitable;
 }
 }  // namespace boost
+#endif
 
 namespace cc {
 
@@ -117,6 +119,7 @@ struct is_optional<std::optional<T>> : public std::true_type {};
 template <typename T>
 constexpr bool is_optional_v = is_optional<T>::value;
 
+#ifdef CC_ENABLE_COROUTINE
 // is asio::awaitable<T>
 template <typename T>
 struct is_awaitable : public std::false_type {};
@@ -126,6 +129,13 @@ struct is_awaitable<boost::asio::awaitable<T, Executor>> : public std::true_type
 
 template <typename T>
 constexpr bool is_awaitable_v = is_awaitable<T>::value;
+
+#else
+
+template <typename T>
+constexpr bool is_awaitable_v = false;
+
+#endif
 
 // is callable
 template <typename F, typename... Args>

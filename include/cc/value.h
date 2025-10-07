@@ -5,6 +5,7 @@
 #include <vector>
 #include <boost/algorithm/string.hpp>
 #include <cc/type_traits.h>
+#include <cc/util.h>
 #include <cc/value.h>
 #include <cpp_yyjson.hpp>
 #include <gsl/gsl>
@@ -27,6 +28,21 @@ using var_arr_cref = yyjson::writer::const_array_ref;
 namespace cc {
 
 namespace detail {
+
+template <>
+struct typeone<var_t> {
+    static std::string name() { return "var"; }
+};
+
+template <>
+struct typeone<var_arr_t> {
+    static std::string name() { return "var::array"; }
+};
+
+template <>
+struct typeone<var_obj_t> {
+    static std::string name() { return "var::object"; }
+};
 
 template <typename T>
 T ston(std::string_view s) {
@@ -210,7 +226,7 @@ struct var {
 
     static void merge(var_t& src, var_t dst) {
         if (!(src.is_object() && dst.is_object())) {
-            throw std::runtime_error("var::patch expect object !!!");
+            throw std::runtime_error("var::merge expect object !!!");
         }
 
         std::vector<std::string_view> toremove;

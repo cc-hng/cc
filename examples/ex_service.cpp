@@ -30,15 +30,21 @@ int main(int argc, char* argv[]) {
     auto sum = g_svc.call<int, int, int>("/add", 1, 2);
     LOGI("sum = {}", sum);
 
+    var_arr_t a;
+    a.emplace_back(3);
+    a.emplace_back(4);
+    sum = g_svc.call<int, var_t>("/add", var_t(a));
+    LOGI("sum = {}", sum);
+
     g_asp.co_spawn([]() -> net::task<void> {
         auto& g_svc = cc::ConcurrentService::instance();
         for (;;) {
             auto sum = co_await g_svc.co_call<int>("/add", 1, 2);
             LOGI("sum1 = {}", sum);
 
-            const int a = 3;
-            const int b = 4;
-            sum         = co_await g_svc.co_call<int>("/add", a, b);
+            int a = 3;
+            int b = 4;
+            sum   = co_await g_svc.co_call<int>("/add", a, b);
             LOGI("sum2 = {}", sum);
             co_await cc::async_sleep(1000);
         }

@@ -47,7 +47,7 @@ public:
     Sqlite3pp(std::string dbpath, int timeout = -1) : dbpath_(dbpath), timeout_(timeout) {
         sqlite3_config(SQLITE_CONFIG_SINGLETHREAD);
         sqlite3_initialize();
-        auto c = get_conn();
+        [[maybe_unused]] auto c = get_conn();
         execute("PRAGMA journal_mode=WAL;");
         execute("PRAGMA synchronous=NORMAL;");
         execute("PRAGMA locking_mode=NORMAL;");
@@ -233,7 +233,7 @@ private:
             using T0 = typename T::value_type;
             T0 t0;
             fillcol(vm, col, t0);
-            t = t0;
+            t.emplace(std::move(t0));
         } else {
             throw std::runtime_error("Unknown sqlite3 type !!!");
         }

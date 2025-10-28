@@ -1,7 +1,7 @@
 #include "log.h"
 #include <cc/asio.hpp>
 #include <cc/service.h>
-#include <cc/signal.h>
+#include <cc/value.h>
 
 static auto& g_asp = cc::AsioPool::instance();
 int add(int a, int b) {
@@ -26,6 +26,7 @@ int main(int argc, char* argv[]) {
     auto& g_svc = cc::ConcurrentService::instance();
 
     g_svc.advertise("/add", add);
+    g_svc.advertise("/task", task1);
 
     auto sum = g_svc.call<int, int, int>("/add", 1, 2);
     LOGI("sum = {}", sum);
@@ -35,6 +36,11 @@ int main(int argc, char* argv[]) {
     a.emplace_back(4);
     sum = g_svc.call<int, var_t>("/add", var_t(a));
     LOGI("sum = {}", sum);
+
+    g_asp.co_spawn([]() -> net::task<void> {
+        auto& g_svc = cc::ConcurrentService::instance();
+        co_await g_svc.co_call<void>("/task");
+    });
 
     g_asp.co_spawn([]() -> net::task<void> {
         auto& g_svc = cc::ConcurrentService::instance();

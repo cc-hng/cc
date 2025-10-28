@@ -96,7 +96,7 @@ if (LINUX AND CC_HAVE_BACKTRACE_H)
 else()
   set(BOOST_STACKTRACE_ENABLE_BASIC ON)
 endif()
-list(APPEND BOOST_INCLUDE_LIBRARIES "core;asio;beast;url;callable_traits;stacktrace")
+list(APPEND BOOST_INCLUDE_LIBRARIES "asio;signals2;callable_traits;stacktrace")
 CPMAddPackage(
   NAME Boost
   VERSION 1.89.0 # Versions less than 1.85.0 may need patches for installation targets.
@@ -163,8 +163,8 @@ add_library(3rd_dependencies INTERFACE)
 target_link_libraries(
   3rd_dependencies INTERFACE
       Microsoft.GSL::GSL fmt::fmt Threads::Threads
-      Boost::headers Boost::core Boost::asio
-      Boost::url Boost::callable_traits Boost::beast boost_stacktrace
+      Boost::headers Boost::asio Boost::signals2
+      Boost::callable_traits boost_stacktrace
       yyjson cpp_yyjson::cpp_yyjson)
 target_compile_definitions(
   3rd_dependencies INTERFACE

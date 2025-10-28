@@ -14,20 +14,15 @@ add_example(ex_asio_coro)
 add_example(ex_asio_condvar)
 add_example(ex_asio_semaphore)
 add_example(ex_asio_channel)
-add_example(ex_httpserver)
-add_example(ex_httpclient)
 add_example(ex_sqlite3)
 add_example(ex_signal)
 # add_example(ex_process)
 add_example(ex_service)
-
-if (NOT WIN32)
-  add_example(ex_wsserver)
-  add_example(ex_wsclient)
-endif()
 
 add_example(ex_udp_client)
 add_example(ex_udp_server)
 
 add_example(udp_multicast_server)
 add_example(udp_multicast_client)
+
+add_example(main)

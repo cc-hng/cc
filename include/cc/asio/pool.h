@@ -18,15 +18,16 @@
 
 namespace cc {
 
+namespace net = boost::asio;
+
 namespace detail {
 
 class IntervalTimer final : public std::enable_shared_from_this<IntervalTimer> {
 public:
-    using Callback = std::function<void(std::shared_ptr<boost::asio::steady_timer>)>;
+    using Callback = std::function<void(std::shared_ptr<net::steady_timer>)>;
 
-    IntervalTimer(boost::asio::io_context& io_context, std::chrono::milliseconds interval,
-                  Callback fn)
-      : timer_(std::make_shared<boost::asio::steady_timer>(io_context))
+    IntervalTimer(net::io_context& io_context, std::chrono::milliseconds interval, Callback fn)
+      : timer_(std::make_shared<net::steady_timer>(io_context))
       , interval_(interval)
       , callback_((Callback&&)fn) {}
 
@@ -43,23 +44,23 @@ public:
         });
     }
 
-    std::weak_ptr<boost::asio::steady_timer> get_weak_timer() const {
-        return std::weak_ptr<boost::asio::steady_timer>(timer_);
+    std::weak_ptr<net::steady_timer> get_weak_timer() const {
+        return std::weak_ptr<net::steady_timer>(timer_);
     }
 
 private:
-    std::shared_ptr<boost::asio::steady_timer> timer_;
+    std::shared_ptr<net::steady_timer> timer_;
     std::chrono::milliseconds interval_;
     Callback callback_;
 };
 }  // namespace detail
 
 class AsioPool final : boost::noncopyable {
-    using executor_t   = boost::asio::io_context::executor_type;
-    using work_guard_t = boost::asio::executor_work_guard<executor_t>;
+    using executor_t   = net::io_context::executor_type;
+    using work_guard_t = net::executor_work_guard<executor_t>;
 
 public:
-    using timer_t = std::weak_ptr<boost::asio::steady_timer>;
+    using timer_t = std::weak_ptr<net::steady_timer>;
 
 public:
     static AsioPool& instance() {
@@ -71,11 +72,11 @@ public:
 
     ~AsioPool() { shutdown(); }
 
-    inline boost::asio::io_context& get_io_context() { return ctx_; }
+    inline net::io_context& get_io_context() { return ctx_; }
 
     template <typename CompletionToken>
     inline auto enqueue(CompletionToken&& token) {
-        return boost::asio::dispatch(ctx_, std::forward<CompletionToken>(token));
+        return net::dispatch(ctx_, std::forward<CompletionToken>(token));
     }
 
     template <typename Fn>
@@ -89,7 +90,7 @@ public:
 
     template <typename Fn>
     auto set_timeout(int ms, Fn&& f) {
-        auto timer = std::make_shared<boost::asio::steady_timer>(ctx_);
+        auto timer = std::make_shared<net::steady_timer>(ctx_);
         timer->expires_after(std::chrono::milliseconds(ms));
         std::function handle = [fn = std::forward<Fn>(f), timer](boost::system::error_code ec) {
             if (!ec) {
@@ -151,13 +152,12 @@ public:
 #ifdef CC_ENABLE_COROUTINE
     template <typename Any, typename CompletionToken>
     auto co_spawn(Any&& a, CompletionToken&& token) {
-        return boost::asio::co_spawn(ctx_, std::forward<Any>(a),
-                                     std::forward<CompletionToken>(token));
+        return net::co_spawn(ctx_, std::forward<Any>(a), std::forward<CompletionToken>(token));
     }
 
     template <typename Any>
     auto co_spawn(Any&& a) {
-        return boost::asio::co_spawn(ctx_, std::forward<Any>(a), [](std::exception_ptr e) {
+        return net::co_spawn(ctx_, std::forward<Any>(a), [](std::exception_ptr e) {
             if (!e) return;
             try {
                 std::rethrow_exception(e);
@@ -176,7 +176,7 @@ private:
     }
 
 private:
-    boost::asio::io_context ctx_;
+    net::io_context ctx_;
     std::atomic<bool> stopped_;
 
     // prevent the run() method from return.

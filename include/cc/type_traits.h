@@ -1,6 +1,7 @@
 #pragma once
 
 #include <list>
+#include <memory>
 #include <map>
 #include <optional>
 #include <set>
@@ -28,6 +29,16 @@
     template <typename F, typename... Args>                                                   \
     constexpr bool has_member_##member##_v = has_member_##member<F, Args...>::value;
 
+#define CC_DEFINE_IS_CONTAINER(contianer_name, trait_name)          \
+    template <typename T>                                           \
+    struct trait_name : std::false_type {};                         \
+                                                                    \
+    template <typename... Args>                                     \
+    struct trait_name<contianer_name<Args...>> : std::true_type {}; \
+                                                                    \
+    template <typename T>                                           \
+    constexpr bool trait_name##_v = trait_name<T>::value;
+
 #ifdef CC_ENABLE_COROUTINE
 namespace boost {
 namespace asio {
@@ -43,92 +54,21 @@ template <int i>
 using Int2Type = std::integral_constant<int, i>;
 
 /// stl container
-template <typename T>
-struct is_vector : public std::false_type {};
+CC_DEFINE_IS_CONTAINER(std::vector, is_vector)
+CC_DEFINE_IS_CONTAINER(std::list, is_list)
+CC_DEFINE_IS_CONTAINER(std::set, is_set)
+CC_DEFINE_IS_CONTAINER(std::unordered_set, is_unordered_set)
+CC_DEFINE_IS_CONTAINER(std::map, is_map)
+CC_DEFINE_IS_CONTAINER(std::unordered_map, is_unordered_map)
+CC_DEFINE_IS_CONTAINER(std::tuple, is_tuple)
+CC_DEFINE_IS_CONTAINER(std::optional, is_optional)
+CC_DEFINE_IS_CONTAINER(std::shared_ptr, is_shared_ptr)
+CC_DEFINE_IS_CONTAINER(std::weak_ptr, is_weak_ptr)
 
-template <typename T>
-struct is_vector<std::vector<T>> : public std::true_type {};
-
-template <typename T>
-constexpr bool is_vector_v = is_vector<T>::value;
-
-template <typename T>
-struct is_list : public std::false_type {};
-
-template <typename T>
-struct is_list<std::list<T>> : public std::true_type {};
-
-template <typename T>
-constexpr bool is_list_v = is_list<T>::value;
-
-template <typename T>
-struct is_set : public std::false_type {};
-
-template <typename T>
-struct is_set<std::set<T>> : public std::true_type {};
-
-template <typename T>
-constexpr bool is_set_v = is_set<T>::value;
-
-template <typename T>
-struct is_unordered_set : public std::false_type {};
-
-template <typename T, typename A>
-struct is_unordered_set<std::unordered_set<T, A>> : public std::true_type {};
-
-template <typename T>
-constexpr bool is_unordered_set_v = is_unordered_set<T>::value;
-
-template <typename T>
-struct is_map : public std::false_type {};
-
-template <typename T, typename A>
-struct is_map<std::map<T, A>> : public std::true_type {};
-
-template <typename T>
-constexpr bool is_map_v = is_map<T>::value;
-
-template <typename T>
-struct is_unordered_map : public std::false_type {};
-
-template <typename T, typename A>
-struct is_unordered_map<std::unordered_map<T, A>> : public std::true_type {};
-
-template <typename T>
-constexpr bool is_unordered_map_v = is_unordered_map<T>::value;
-
-template <typename T>
-struct is_tuple : public std::false_type {};
-
-template <typename... Args>
-struct is_tuple<std::tuple<Args...>> : public std::true_type {};
-
-template <typename T>
-constexpr bool is_tuple_v = is_tuple<T>::value;
-
-/*
- * @brief: Check if a type is std::optional
- * @refer: https://stackoverflow.com/a/62313139
- */
-template <typename T>
-struct is_optional : public std::false_type {};
-
-template <typename T>
-struct is_optional<std::optional<T>> : public std::true_type {};
-
-template <typename T>
-constexpr bool is_optional_v = is_optional<T>::value;
 
 #ifdef CC_ENABLE_COROUTINE
-// is asio::awaitable<T>
-template <typename T>
-struct is_awaitable : public std::false_type {};
 
-template <typename T, typename Executor>
-struct is_awaitable<boost::asio::awaitable<T, Executor>> : public std::true_type {};
-
-template <typename T>
-constexpr bool is_awaitable_v = is_awaitable<T>::value;
+CC_DEFINE_IS_CONTAINER(boost::asio::awaitable, is_awaitable)
 
 #else
 
@@ -136,27 +76,6 @@ template <typename T>
 constexpr bool is_awaitable_v = false;
 
 #endif
-
-// is callable
-template <typename F, typename... Args>
-struct is_callable {
-    // SFINAE  Check
-    template <typename T, typename Dummy = typename std::invoke_result_t<T, Args...>>
-    static constexpr std::true_type check(std::nullptr_t dummy) {
-        return std::true_type{};
-    };
-
-    template <typename Dummy>
-    static constexpr std::false_type check(...) {
-        return std::false_type{};
-    };
-
-    // the integral_constant's value
-    static constexpr bool value = decltype(check<F>(nullptr))::value;
-};
-
-template <typename F, typename... Args>
-constexpr bool is_callable_v = is_callable<F, Args...>::value;
 
 // 定义一个 remove_member_pointer_t 实现
 template <typename T>

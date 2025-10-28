@@ -1,28 +1,18 @@
 #pragma once
 
-#include <any>
-#include <deque>
-#include <functional>
-#include <memory>
 #include <mutex>
-#include <string>
-#include <typeinfo>
 #include <unordered_map>
 #include <boost/callable_traits.hpp>
-#include <boost/core/demangle.hpp>
-#include <boost/core/noncopyable.hpp>
-#include <cc/detail/functor.h>
-#include <cc/stopwatch.h>
+#include <boost/signals2.hpp>
 #include <cc/type_traits.h>
 #include <cc/util.h>
-
-#ifdef CC_ENABLE_COROUTINE
-#    include <cc/asio.hpp>
-#endif
+#include <cc/value.h>
+#include <gsl/gsl>
 
 namespace cc {
 
-namespace ct = boost::callable_traits;
+namespace bs2 = boost::signals2;
+namespace ct  = boost::callable_traits;
 
 namespace detail {
 
@@ -31,15 +21,28 @@ struct tuple_name;
 
 template <typename... Args>
 struct tuple_name<std::tuple<Args...>> {
-    static inline std::string str() { return type_name<Args...>(); }
+    static inline std::string str() { return cc::type_name<Args...>(); }
+};
+
+template <typename U, typename T = std::remove_cvref_t<U>>
+struct arg_convert {
+    using type = std::conditional_t<std::is_class_v<T> || std::is_union_v<T>, const T&, T>;
 };
 
 template <typename F>
-struct sig_adjust_signature;
+struct signature_convert;
 
 template <typename R, typename... Args>
-struct sig_adjust_signature<R(Args...)> {
-    using type = R(const std::decay_t<Args>&...);
+struct signature_convert<R(Args...)> {
+    using type = R(typename arg_convert<Args>::type...);
+};
+
+template <typename T>
+struct adjust_tuple;
+
+template <typename... Args>
+struct adjust_tuple<std::tuple<Args...>> {
+    using type = std::tuple<std::decay_t<Args>...>;
 };
 
 }  // namespace detail
@@ -48,125 +51,125 @@ template <                                          //
     typename MutexPolicy              = NonMutex,   //
     template <class> class ReaderLock = LockGuard,  //
     template <class> class WriterLock = LockGuard>
-class Signal : boost::noncopyable {
-    using Handle = int;
+class Signal {
+    using sig_ptr    = std::shared_ptr<bs2::signal_base>;
+    using mutex_type = bs2::keywords::mutex_type<
+        std::conditional_t<std::is_same_v<MutexPolicy, NonMutex>, bs2::dummy_mutex, bs2::mutex>>;
+    template <typename T>
+    using sig_type = typename bs2::signal_type<T, mutex_type>::type;
 
-    MutexPolicy mtx_;
-    Handle id_;
-    std::unordered_multimap<std::string, Handle> registries_;
-    std::unordered_map<Handle, cc::detail::Functor> handlers_;
-    std::unordered_map<std::string, std::string> topic_info_;
+    struct context_t {
+        sig_type<void(const var_t&)> s_any;          // sub any
+        std::function<void(const var_t&)> emit_any;  // pub any
+        sig_ptr sig;
+        std::string sign;
+    };
 
-    template <typename F>
-    static auto make_cv_function(F&& f) {
-        using DF =
-            std::function<typename detail::sig_adjust_signature<ct::function_type_t<F>>::type>;
-        if constexpr (std::tuple_size_v<ct::args_t<F>> > 0) {
-            auto spf = std::make_shared<std::decay_t<F>>(std::forward<F>(f));
-            return DF([spf](const auto&... args) { return (*spf)(args...); });
-        } else {
-            return std::forward<F>(f);
-        }
-    }
+    mutable MutexPolicy mtx_;
+    std::unordered_map<std::string, context_t> sigs_;
 
 public:
-    Signal() = default;
-
-    std::unordered_map<std::string, std::string>  //
-    list() {
-        ReaderLock<MutexPolicy> _lck{mtx_};
-        std::unordered_map<std::string, std::string> ret = topic_info_;
-        return ret;
+    template <typename MemFn, typename Cls>
+    std::enable_if_t<std::is_member_function_pointer_v<MemFn>, bs2::connection>
+    connect(std::string topic, const MemFn& fn, Cls obj) {
+        static_assert(std::is_same_v<ct::return_type_t<MemFn>, void>,
+                      "Only support void return type");
+        std::function<remove_member_pointer_t<MemFn>> f = [obj, fn](auto&&... args) {
+            if constexpr (std::is_pointer_v<Cls>) {
+                (obj->*fn)(std::forward<decltype(args)>(args)...);
+            } else if constexpr (is_shared_ptr_v<Cls>) {
+                (obj.get()->*fn)(std::forward<decltype(args)>(args)...);
+            } else if constexpr (is_weak_ptr_v<Cls>) {
+                if (auto p = obj.lock()) {
+                    (p.get()->*fn)(std::forward<decltype(args)>(args)...);
+                }
+            }
+            // do nothing
+        };
+        return connect(std::move(topic), std::move(f));
     }
 
     template <typename F>
-    std::enable_if_t<!std::is_member_function_pointer_v<F>, Handle>  //
-    sub(std::string topic, F&& f) {
-        using ArgsTuple = detail::adjust_tuple<ct::args_t<F>>::type;
-        auto typeinfo   = detail::tuple_name<ArgsTuple>::str();
+    std::enable_if_t<!std::is_member_function_pointer_v<F>, bs2::connection>
+    connect(std::string topic, F&& f) {
         WriterLock<MutexPolicy> _lck{mtx_};
-        return sub_impl(std::move(topic), std::move(typeinfo),
-                        detail::Functor(make_cv_function(std::forward<F>(f))));
+        using Signature      = typename detail::signature_convert<ct::function_type_t<F>>::type;
+        const auto topicinfo = detail::tuple_name<ct::args_t<Signature>>::str();
+        if (sigs_.find(topic) == sigs_.end()) {
+            sigs_.emplace(topic, context_t{sig_type<void(const var_t&)>{}, nullptr, nullptr, ""});
+        }
+
+        auto& c = sigs_.at(topic);
+        if (GSL_UNLIKELY(c.sig == nullptr && c.sign.empty())) {
+            c.sig  = std::make_shared<sig_type<Signature>>();
+            c.sign = topicinfo;
+#pragma warning(push)
+#pragma warning(disable : 4244)
+            c.emit_any = [this, topic](const var_t& v) {
+                std::apply([&](auto&&... xs) { emit(topic, std::forward<decltype(xs)>(xs)...); },
+                           v.cast<typename detail::adjust_tuple<ct::args_t<Signature>>::type>());
+            };
+#pragma warning(pop)
+        }
+
+        if (GSL_UNLIKELY(c.sign != topicinfo)) {
+            throw std::runtime_error("Signal type dismatch. before=" + c.sign
+                                     + ", after=" + topicinfo);
+        }
+        auto s = std::dynamic_pointer_cast<sig_type<Signature>>(c.sig);
+        Expects(s);
+        return s->connect(std::forward<F>(f));
     }
 
-    template <typename MemFn, typename Cls>
-    std::enable_if_t<std::is_member_function_pointer_v<MemFn>, Handle>
-    sub(std::string topic, const MemFn& fn, Cls obj) {
-        using ArgsTuple = detail::adjust_tuple<ct::args_t<cc::remove_member_pointer_t<MemFn>>>::type;
-        auto typeinfo = detail::tuple_name<ArgsTuple>::str();
+    void unconnect(std::string topic) {
         WriterLock<MutexPolicy> _lck{mtx_};
-        return sub_impl(std::move(topic), std::move(typeinfo),
-                        detail::Functor(make_cv_function(detail::Functor::make_function(fn, obj))));
+        sigs_.erase(topic);
     }
 
     template <typename... Args>
-    void pub(std::string topic, Args&&... args) {
-        using ArgsTuple = detail::adjust_tuple<std::tuple<std::remove_cv_t<Args>...>>::type;
+    void emit(std::string topic, Args&&... args) {
+        using Signature      = typename detail::signature_convert<void(Args...)>::type;
+        const auto topicinfo = detail::tuple_name<ct::args_t<Signature>>::str();
 
         ReaderLock<MutexPolicy> _lck{mtx_};
-        if (topic_info_.count(topic)) {
-            auto name = detail::tuple_name<ArgsTuple>::str();
-            if (topic_info_.at(topic) != name && !std::is_same_v<ArgsTuple, std::tuple<var_t>>) {
-                throw std::runtime_error("Signal::pub type dismatch. registed="
-                                         + topic_info_.at(topic) + ", current=" + name);
-            }
+        if (sigs_.find(topic) != sigs_.end()) {
+            auto& ctx       = sigs_.at(topic);
+            auto args_tuple = std::forward_as_tuple(std::forward<Args>(args)...);
 
-            auto range = registries_.equal_range(topic);
-            if (range.first != range.second) {
-                std::tuple<std::decay_t<Args>...> args0(std::forward<Args>(args)...);
-                for (auto it = range.first; it != range.second; ++it) {
-                    auto* f = &(handlers_.at(it->second));
-                    std::apply([f](const auto&... as) { (*f)(as...); }, args0);
+            if (ctx.sig) {
+                if (ctx.sign != topicinfo) {
+                    throw std::runtime_error("Signal type dismatch. registed=" + ctx.sign
+                                             + ", current=" + topicinfo);
+                }
+                auto s = std::dynamic_pointer_cast<sig_type<Signature>>(ctx.sig);
+                Expects(s);
+                if (s && s->num_slots()) {
+                    std::apply(*s, args_tuple);
                 }
             }
-        }
-    }
 
-    void unsub(const std::string& topic) {
-        WriterLock<MutexPolicy> _lck{mtx_};
-        auto range = registries_.equal_range(topic);
-        for (auto it = range.first; it != range.second; ++it) {
-            handlers_.erase(it->second);
-        }
-        registries_.erase(topic);
-        topic_info_.erase(topic);
-    }
-
-    void unsub(Handle id) {
-        WriterLock<MutexPolicy> _lck{mtx_};
-        handlers_.erase(id);
-        std::string topic;
-        auto it = registries_.begin();
-        while (it != registries_.end()) {
-            if (it->second == id) {
-                topic = it->first;
-                it    = registries_.erase(it);
-                break;
-            } else {
-                ++it;
+            if (ctx.s_any.num_slots()) {
+                var_t v = args_tuple;
+                ctx.s_any(v);
             }
         }
-
-        if (!registries_.contains(topic)) {
-            topic_info_.erase(topic);
-        }
     }
 
-private:
-    Handle sub_impl(std::string topic, std::string typeinfo, cc::detail::Functor&& f) {
-        if (topic_info_.count(topic)) {
-            if (typeinfo != topic_info_.at(topic)) {
-                throw std::runtime_error("Signal::sub type dismatch. before="
-                                         + topic_info_.at(topic) + ", after=" + typeinfo);
-            }
-        } else {
-            topic_info_.emplace(topic, (std::string&&)typeinfo);
+    /// debug
+    template <typename F>
+    auto connect_any(std::string topic, F&& f) {
+        WriterLock<MutexPolicy> _lck{mtx_};
+        if (sigs_.find(topic) == sigs_.end()) {
+            sigs_.emplace(topic, context_t{sig_type<void(const var_t&)>{}, nullptr, nullptr, ""});
         }
+        return sigs_.at(topic).s_any.connect(std::forward<F>(f));
+    }
 
-        Handle h = id_++;
-        registries_.emplace(topic, h);
-        handlers_.emplace(h, (cc::detail::Functor&&)f);
-        return h;
+    void emit_any(std::string topic, const var_t& v) {
+        ReaderLock<MutexPolicy> _lck{mtx_};
+        if (sigs_.find(topic) != sigs_.end()) {
+            sigs_.at(topic).emit_any(v);
+        }
     }
 };
 

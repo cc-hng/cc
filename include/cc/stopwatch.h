@@ -19,6 +19,7 @@ public:
 
     StopWatch() : start_tp_{clock::now()} {}
 
+    /// @return elapsed time in seconds
     inline double elapsed() const {
         return std::chrono::duration<double>(clock::now() - start_tp_).count();
     }

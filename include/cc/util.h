@@ -2,8 +2,8 @@
 
 #include <list>
 #include <map>
-#include <sstream>
-#include <stdexcept>
+#include <sstream>    // NOLINT
+#include <stdexcept>  // NOLINT
 #include <string>
 #include <unordered_map>
 #include <vector>

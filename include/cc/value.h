@@ -11,7 +11,6 @@
 #include <gsl/gsl>
 
 // for debug
-#include <typeinfo>
 #include <boost/core/demangle.hpp>
 #include <fmt/core.h>
 
@@ -24,6 +23,17 @@ using var_obj_cref = yyjson::writer::const_object_ref;
 using var_arr_t    = yyjson::writer::array;
 using var_arr_ref  = yyjson::writer::array_ref;
 using var_arr_cref = yyjson::writer::const_array_ref;
+
+namespace yyjson {
+namespace detail {
+
+template <>
+struct default_caster<var_t> {
+    static var_t from_json(const var_t& v) { return v; }
+};
+
+}  // namespace detail
+}  // namespace yyjson
 
 namespace cc {
 
@@ -61,10 +71,20 @@ T ston(std::string_view s) {
 
 // clang-format off
 inline std::vector<std::string_view>  // clang-format on
-str_split(std::string_view raw, std::string_view sep) {
+str_split(std::string_view str, std::string_view delimiter) {
+    size_t start = 0;
+    size_t end   = 0;
+    size_t dlen  = delimiter.size();
     std::vector<std::string_view> result;
-    result.reserve(4);
-    boost::algorithm::split(result, raw, boost::is_any_of(std::string(sep)));
+    result.reserve(16);
+
+    while ((end = str.find(delimiter, start)) != std::string_view::npos) {
+        auto s = str.substr(start, end - start);
+        result.emplace_back(s);
+        start = end + dlen;
+    }
+    auto s = str.substr(start);
+    result.emplace_back(s);
     return result;
 }
 
@@ -122,7 +142,7 @@ struct var {
         GSL_ASSUME(false);
     }
 
-    static var_t clone(var_t self) {
+    static var_t clone(const var_t& self) {
         if (self.is_null()) {
             return var_t();
         } else if (self.is_bool()) {
@@ -138,7 +158,7 @@ struct var {
         }
     }
 
-    static bool equal(var_t lhs, var_t rhs) {
+    static bool equal(const var_t& lhs, const var_t& rhs) {
         try {
             if (lhs.is_null()) {
                 return rhs.is_null();
@@ -193,7 +213,7 @@ struct var {
         }
     }
 
-    static void patch(var_t& self, var_t rhs, bool strict = true) {
+    static void patch(var_t& self, const var_t& rhs, bool strict = true) {
         if (!(self.is_object() && rhs.is_object())) {
             throw std::runtime_error("var::patch expect object !!!");
         }
@@ -224,7 +244,7 @@ struct var {
         }
     }
 
-    static void merge(var_t& src, var_t dst) {
+    static void merge(var_t& src, const var_t& dst) {
         if (!(src.is_object() && dst.is_object())) {
             throw std::runtime_error("var::merge expect object !!!");
         }
@@ -310,56 +330,26 @@ struct var {
 
     template <typename U, typename T = std::remove_cvref_t<U>>
     static T as(const var_t& self) {
-        if constexpr (std::is_same_v<T, var_t>) {
-            return var::clone(self);
-        } else if constexpr (std::is_same_v<T, var_obj_cref>) {
-            if (GSL_UNLIKELY(!self.is_object())) {
-                throw yyjson::bad_cast("Expect object type. type=" + std::to_string(type(self)));
+        if constexpr (std::is_same_v<T, bool>) {
+            if (GSL_UNLIKELY(self.is_string())) {
+                auto s = *self.as_string();
+                return s == "true" || s == "1" || s == "yes" || s == "on" || s == "TRUE"
+                       || s == "YES" || s == "ON";
             }
-            return var_obj_cref(self);
-        } else if constexpr (std::is_same_v<T, var_arr_cref>) {
-            if (GSL_UNLIKELY(!self.is_array())) {
-                throw yyjson::bad_cast("Expect array type. type=" + std::to_string(type(self)));
+        } else if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
+            if (GSL_UNLIKELY(self.is_string())) {
+                return detail::ston<T>(*self.as_string());
             }
-            return var_arr_cref(self);
-        } else if constexpr (cc::is_tuple_v<T>) {
-            auto arr = var_arr_cref(self);
-            if (GSL_UNLIKELY(std::tuple_size_v<T> != arr.size())) {
-                throw yyjson::bad_cast(
-                    fmt::format("Tuple size mismatch. sizeof(tuple)={}, sizeof(arr)={}, tuple={}",
-                                std::tuple_size_v<T>, arr.size(),
-                                boost::core::demangle(typeid(T).name())));
+        } else if constexpr (std::is_same_v<std::string, T>) {
+            if (GSL_UNLIKELY(self.is_bool())) {
+                return std::to_string(*self.as_bool());
+            } else if (GSL_UNLIKELY(self.is_int())) {
+                return std::to_string(*self.as_int());
+            } else if (GSL_UNLIKELY(self.is_real())) {
+                return std::to_string(*self.as_real());
             }
-            T t;
-            std::apply(
-                [&arr](auto&... args) {
-                    int i = 0;
-                    ((args = var::as<std::decay_t<decltype(args)>>(arr[i++])), ...);
-                },
-                t);
-            return {t};
-        } else {
-            if constexpr (std::is_same_v<T, bool>) {
-                if (GSL_UNLIKELY(self.is_string())) {
-                    auto s = *self.as_string();
-                    return s == "true" || s == "1" || s == "yes" || s == "on" || s == "TRUE"
-                           || s == "YES" || s == "ON";
-                }
-            } else if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
-                if (GSL_UNLIKELY(self.is_string())) {
-                    return detail::ston<T>(*self.as_string());
-                }
-            } else if constexpr (std::is_same_v<std::string, T>) {
-                if (GSL_UNLIKELY(self.is_bool())) {
-                    return std::to_string(*self.as_bool());
-                } else if (GSL_UNLIKELY(self.is_int())) {
-                    return std::to_string(*self.as_int());
-                } else if (GSL_UNLIKELY(self.is_real())) {
-                    return std::to_string(*self.as_real());
-                }
-            }
-            return self.cast<T>();
         }
+        return self.cast<T>();
     }
 
     static bool contains(const var_t& self, std::string_view ks) {

@@ -24,5 +24,3 @@ add_example(ex_udp_server)
 
 add_example(udp_multicast_server)
 add_example(udp_multicast_client)
-
-add_example(main)

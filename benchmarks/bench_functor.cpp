@@ -1,7 +1,6 @@
 #include "common.h"
 #include <any>
 #include <functional>
-#include <boost/compat/function_ref.hpp>
 #include <cc/util.h>
 #include <cc/value.h>
 
@@ -15,12 +14,10 @@ static void bench_func(bench::Bench& b) {
 
     int (*f1)(int, int)                           = add;
     std::function<int(int, int)> f2               = add;
-    boost::compat::function_ref<int(int, int)> f3 = add;
     b.title("func");
     b.run("base", [] { bench::doNotOptimizeAway(add(3, 4)); });
     b.run("func *", [&] { bench::doNotOptimizeAway(f1(3, 4)); });
     b.run("std::function", [&] { bench::doNotOptimizeAway(f2(3, 4)); });
-    b.run("boost::function_ref", [&] { bench::doNotOptimizeAway(f3(3, 4)); });
     b.run("any", [&] {
         const std::function<int(int, int)>* f00 = std::any_cast<std::function<int(int, int)>>(&a);
         bench::doNotOptimizeAway((*f00)(3, 4));

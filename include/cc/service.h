@@ -14,7 +14,7 @@
 
 #ifdef CC_ENABLE_COROUTINE
 #    include <cc/asio.hpp>
-namespace net = boost::asio;   // NOLINT
+namespace net = boost::asio;  // NOLINT
 #endif
 
 namespace cc {
@@ -22,14 +22,6 @@ namespace cc {
 namespace detail {
 
 namespace ct = boost::callable_traits;
-
-template <typename T>
-struct adjust_tuple;
-
-template <typename... Args>
-struct adjust_tuple<std::tuple<Args...>> {
-    using type = std::tuple<std::decay_t<Args>...>;
-};
 
 class Functor {
     bool is_coro_;
@@ -103,22 +95,19 @@ private:
         using ArgsTuple = std::tuple<std::decay_t<Args>...>;
         try {
             if constexpr (std::is_same_v<ArgsTuple, std::tuple<var_t>>) {
-                var_t arg0 = std::get<0>(ArgsTuple{std::forward<Args>(args)...});
-                const std::function<R(const var_t&)>* fn = nullptr;
-
-                try {
-                    fn = std::any_cast<std::function<R(const var_t&)>>(&fn_);
-                } catch (const std::bad_any_cast& e) {
-                }
-
-                if (fn) {
-                    return (*fn)(arg0);
+                var_t in;
+                var_t arg0        = std::get<0>(ArgsTuple{std::forward<Args>(args)...});
+                if (arg0.is_object()) {
+                    var_arr_t arr;
+                    arr.emplace_back(arg0);
+                    in = var_t(arr);
                 } else {
-                    const auto* varfn = std::any_cast<std::function<var_t(var_t)>>(&varfn_);
-                    auto r            = (*varfn)(arg0);
-                    if constexpr (!std::is_same_v<R, void>) {
-                        return var::as<R>(r);
-                    }
+                    in = arg0;
+                }
+                const auto* varfn = std::any_cast<std::function<var_t(var_t)>>(&varfn_);
+                auto r            = (*varfn)(in);
+                if constexpr (!std::is_same_v<R, void>) {
+                    return var::as<R>(r);
                 }
             } else {
                 using DF        = std::function<R(Args...)>;
@@ -139,23 +128,20 @@ private:
         using ArgsTuple = std::tuple<std::decay_t<Args>...>;
         try {
             if constexpr (std::is_same_v<ArgsTuple, std::tuple<var_t>>) {
+                var_t in;
                 var_t arg0 = std::get<0>(ArgsTuple{std::forward<Args>(args)...});
-                const std::function<net::awaitable<Inner>(const var_t&)>* fn = nullptr;
-                try {
-                    const auto* fn =
-                        std::any_cast<std::function<net::awaitable<Inner>(const var_t&)>>(&fn_);
-                } catch (const std::bad_any_cast& e) {
-                }
-
-                if (!fn) {
-                    const auto* varfn =
-                        std::any_cast<std::function<net::awaitable<var_t>(var_t)>>(&varfn_);
-                    auto r = co_await (*varfn)(arg0);
-                    if constexpr (!std::is_same_v<Inner, void>) {
-                        co_return var::as<Inner>(r);
-                    }
+                if (arg0.is_object()) {
+                    var_arr_t arr;
+                    arr.emplace_back(arg0);
+                    in = var_t(arr);
                 } else {
-                    co_return co_await (*fn)(arg0);
+                    in = arg0;
+                }
+                const auto* varfn =
+                    std::any_cast<std::function<net::awaitable<var_t>(var_t)>>(&varfn_);
+                var_t r = co_await (*varfn)(in);
+                if constexpr (!std::is_same_v<Inner, void>) {
+                    co_return var::as<Inner>(r);
                 }
             } else {
                 using DF        = std::function<net::awaitable<Inner>(Args...)>;
@@ -173,7 +159,7 @@ private:
     static std::enable_if_t<cc::is_awaitable_v<ct::return_type_t<F>>,
                             std::function<net::awaitable<var_t>(var_t)>>
     make_varfn(std::shared_ptr<F> spf) {
-        using ArgsTuple = detail::adjust_tuple<ct::args_t<F>>::type;
+        using ArgsTuple = adjust_tuple<ct::args_t<F>>::type;
         using R         = ct::return_type_t<F>;
         return [spf](var_t v) -> net::awaitable<var_t> {
             if constexpr (std::is_same_v<R, net::awaitable<void>>) {
@@ -191,7 +177,7 @@ private:
                             std::function<var_t(var_t)>>
     make_varfn(std::shared_ptr<F> spf) {
         using R         = ct::return_type_t<F>;
-        using ArgsTuple = detail::adjust_tuple<ct::args_t<F>>::type;
+        using ArgsTuple = adjust_tuple<ct::args_t<F>>::type;
         return [spf](var_t v) -> var_t {
             if constexpr (std::is_same_v<R, void>) {
                 std::apply(*spf, var::as<ArgsTuple>(v));

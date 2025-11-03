@@ -116,4 +116,12 @@ constexpr bool in_variant_v = in_variant<T, Variant>::value;
 // has_member
 CC_HAS_MEMBER(get)
 
+template <typename T>
+struct adjust_tuple;
+
+template <typename... Args>
+struct adjust_tuple<std::tuple<Args...>> {
+    using type = std::tuple<std::decay_t<Args>...>;
+};
+
 }  // namespace cc

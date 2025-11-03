@@ -88,7 +88,7 @@ private:
     }
 
     /// @return [0, m)
-    static inline int random(int m) { return time(NULL) / m; }
+    static inline int random(int m) { return time(NULL) % m; }
 };
 
 }  // namespace cc

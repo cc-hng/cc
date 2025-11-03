@@ -204,7 +204,6 @@ target_include_directories(
   ${PROJECT_NAME} INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>)
-target_link_time_optimization(${PROJECT_NAME} REQUIRED)
 
 #####################################
 # test

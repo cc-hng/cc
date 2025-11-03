@@ -37,14 +37,6 @@ struct signature_convert<R(Args...)> {
     using type = R(typename arg_convert<Args>::type...);
 };
 
-template <typename T>
-struct adjust_tuple;
-
-template <typename... Args>
-struct adjust_tuple<std::tuple<Args...>> {
-    using type = std::tuple<std::decay_t<Args>...>;
-};
-
 }  // namespace detail
 
 template <                                          //
@@ -106,8 +98,16 @@ public:
 #pragma warning(push)
 #pragma warning(disable : 4244)
             c.emit_any = [this, topic](const var_t& v) {
+                using Tuple = typename adjust_tuple<ct::args_t<Signature>>::type;
+                if (!v.is_array()) {
+                    throw std::runtime_error("Signal type dismatch. not array");
+                }
+
+                if (std::tuple_size_v<Tuple> != v.as_array()->size()) {
+                    throw std::runtime_error("Signal type dismatch. size not match");
+                }
                 std::apply([&](auto&&... xs) { emit(topic, std::forward<decltype(xs)>(xs)...); },
-                           v.cast<typename detail::adjust_tuple<ct::args_t<Signature>>::type>());
+                           v.cast<Tuple>());
             };
 #pragma warning(pop)
         }

@@ -6,11 +6,13 @@
 namespace cc {
 
 class StopWatch {
-    using clock      = std::chrono::steady_clock;
+    using clock = std::chrono::steady_clock;
     using time_point = clock::time_point;
 
     enum { MAX_TIME = 0x7fffffff };
     time_point start_tp_;
+
+    explicit StopWatch(time_point tp) : start_tp_((time_point&&)tp) {}
 
 public:
     static StopWatch now() { return StopWatch(); }
@@ -20,14 +22,9 @@ public:
     StopWatch() : start_tp_{clock::now()} {}
 
     /// @return elapsed time in seconds
-    inline double elapsed() const {
-        return std::chrono::duration<double>(clock::now() - start_tp_).count();
-    }
+    inline double elapsed() const { return std::chrono::duration<double>(clock::now() - start_tp_).count(); }
 
     inline void reset() { start_tp_ = clock::now(); }
-
-private:
-    explicit StopWatch(time_point tp) : start_tp_((time_point&&)tp) {}
 };
 
 }  // namespace cc

@@ -1,66 +1,53 @@
 #pragma once
 
 #include <cstddef>
-#include <functional>
-#include <list>
-#include <boost/asio.hpp>
-#include <boost/core/noncopyable.hpp>
+#include <optional>
+#include <cc/asio/condvar.h>
 #include <cc/asio/helper.h>
 #include <cc/util.h>
 
 namespace cc {
 
-template <typename MutexPolicy = NonMutex, template <class> class WriterLock = LockGuard>
-class Semaphore final : public boost::noncopyable {
+template <typename MutexPolicy = NonMutex,  //
+          template <class> class WriterLock = LockGuard>
+class Semaphore final {
+    MutexPolicy mtx_;
+    CondVar<MutexPolicy> cv_;
+    std::size_t permits_;
+
 public:
-    Semaphore(std::size_t init_permits) : permits_(init_permits) {}
+    explicit Semaphore(std::size_t init_permits) : permits_(init_permits) {}
+    Semaphore(const Semaphore&) = delete;
+    Semaphore& operator=(const Semaphore&) = delete;
 
     net::awaitable<void> acquire() {
-        do {
-            WriterLock<MutexPolicy> _lck{mtx_};
-            if (permits_ > 0) {
-                permits_--;
+        for (;;) {
+            // waitSince (inside wait_claim) propagates cancellation; a cancelled
+            // acquire unwinds instead of re-arming a wait that can never fire again.
+            auto claimed = co_await detail::wait_claim<WriterLock>(mtx_, cv_, [this]() -> std::optional<bool> {
+                if (permits_ > 0) {
+                    permits_--;
+                    return true;
+                }
+                return std::nullopt;
+            });
+            if (claimed) {
                 co_return;
             }
-        } while (0);
-
-        using time_point = net::steady_timer::clock_type::time_point;
-        std::shared_ptr<net::steady_timer> timer =
-            std::make_shared<net::steady_timer>(co_await net::this_coro::executor);
-        timer->expires_at(time_point::max());
-        std::weak_ptr<net::steady_timer> weak_timer(timer);
-        add_handle([weak_timer] {
-            if (auto timer = weak_timer.lock()) {
-                timer->cancel();
-            }
-        });
-        co_await timer->async_wait(net::as_tuple(net::use_awaitable));
-    }
-
-    inline void release() {
-        WriterLock<MutexPolicy> _lck{mtx_};
-        permits_++;
-
-        // 存在等待的
-        if (permits_ > 0 && handles_.size() > 0) {
-            permits_--;
-            auto f = handles_.front();
-            handles_.pop_front();
-            f();
         }
     }
 
-private:
-    template <typename Callback>
-    void add_handle(Callback&& cb) {
-        WriterLock<MutexPolicy> _lck{mtx_};
-        handles_.emplace_back(std::forward<Callback>(cb));
+    inline void release() {
+        {
+            WriterLock<MutexPolicy> _lck{mtx_};
+            // ponytail: permit overflow intentionally unchecked; validate a max count if unbalanced release is
+            // needed.
+            permits_++;
+        }
+        // ponytail: notifyAll avoids stranding a permit if selected waiter is canceled;
+        // switch to notifyOne after cancellation handoff is implemented.
+        cv_.notifyAll();
     }
-
-private:
-    MutexPolicy mtx_;
-    std::size_t permits_;
-    std::list<std::function<void()>> handles_;
 };
 
 }  // namespace cc

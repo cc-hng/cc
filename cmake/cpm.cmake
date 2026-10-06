@@ -25,8 +25,7 @@ endif()
 get_filename_component(CPM_DOWNLOAD_LOCATION ${CPM_DOWNLOAD_LOCATION} ABSOLUTE)
 
 file(DOWNLOAD
-     https://github.com/cpm-cmake/CPM.cmake/releases/download/v${CPM_DOWNLOAD_VERSION}/CPM.cmake
-     ${CPM_DOWNLOAD_LOCATION} EXPECTED_HASH SHA256=${CPM_HASHSUM}
-)
+  https://github.com/cpm-cmake/CPM.cmake/releases/download/v${CPM_DOWNLOAD_VERSION}/CPM.cmake
+  ${CPM_DOWNLOAD_LOCATION} EXPECTED_HASH SHA256=${CPM_HASHSUM})
 
 include(${CPM_DOWNLOAD_LOCATION})

@@ -18,24 +18,25 @@ add_example(signal)
 
 add_example(asio)
 set(pch_header "${CMAKE_CURRENT_SOURCE_DIR}/stdafx.h")
+target_include_directories(asio PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_precompile_headers(asio PRIVATE ${pch_header})
 
 # 独立示例 condvar（位于 asio/ 子目录；add_example macro 不支持子目录 target 名，故手动注册）
 add_executable(condvar asio/condvar.cpp)
 target_link_libraries(condvar PRIVATE ${PROJECT_NAME} spdlog)
-target_precompile_headers(condvar PRIVATE ${pch_header})
+target_precompile_headers(condvar REUSE_FROM asio)
 target_include_directories(condvar PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # 独立示例 sem（位于 asio/ 子目录；注册方式同 condvar）
 add_executable(sem asio/sem.cpp)
 target_link_libraries(sem PRIVATE ${PROJECT_NAME} spdlog)
-target_precompile_headers(sem PRIVATE ${pch_header})
+target_precompile_headers(sem REUSE_FROM asio)
 target_include_directories(sem PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # 独立示例 mpsc（位于 asio/ 子目录；注册方式同 condvar）
 add_executable(mpsc asio/mpsc.cpp)
 target_link_libraries(mpsc PRIVATE ${PROJECT_NAME} spdlog)
-target_precompile_headers(mpsc PRIVATE ${pch_header})
+target_precompile_headers(mpsc REUSE_FROM asio)
 target_include_directories(mpsc PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 
